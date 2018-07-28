@@ -26,18 +26,21 @@ extern crate serde_json;
 
 use exonum::{
     api::node::public::explorer::TransactionQuery,
-    crypto::{self, CryptoHash, Hash, PublicKey, SecretKey},
+    crypto::{self, CryptoHash, Hash, PublicKey, SecretKey, sign, gen_keypair},
 };
 use exonum_testkit::{ApiKind, TestKit, TestKitApi, TestKitBuilder};
 
 // Import data types used in tests from the crate where the service is defined.
 use cryptocurrency::{
-    api::{WalletInfo, WalletQuery}, transactions::{CreateWallet, Transfer}, wallet::Wallet,
+    api::{WalletInfo, WalletQuery}, transactions::{CreateWallet, Transfer, Issue}, wallet::Wallet,
     CurrencyService,
 };
 
 // Imports shared test constants.
 use constants::{ALICE_NAME, BOB_NAME};
+
+use std::fs::File;
+use std::io::prelude::*;
 
 mod constants;
 
@@ -200,6 +203,30 @@ fn test_unknown_wallet_request() {
     let (tx, _) = api.create_wallet(ALICE_NAME);
 
     api.assert_no_wallet(*tx.pub_key());
+}
+
+#[test]
+fn test_print_signature(){
+    let (pubkey, seckey) = gen_keypair();
+    let issue = Issue ::new(
+    &pubkey,
+    100,
+    3,
+    &seckey);
+    let serialized = serde_json::to_string(&issue).unwrap();
+    let signature = sign(&serialized.into_bytes(), &seckey);
+    fn write_to_file(s: &String) -> std::io::Result<()> {
+	    let mut file = File::create("foo.txt")?;
+	    let v = s.clone();
+	    file.write_all(&v.into_bytes())?;
+	    Ok(())
+    };
+    let s = serde_json::to_string(&signature).unwrap();
+    let v = s.clone();
+    write_to_file(&v);
+    println!("u64 = {:5?}\n", &signature);
+    println!("u64 = {:5?}\n u64 = {:5?}\n", &pubkey, &seckey);
+    assert_eq!(1, 1);
 }
 
 /// Wrapper for the cryptocurrency service API allowing to easily use it
