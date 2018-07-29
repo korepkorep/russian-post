@@ -1,0 +1,73 @@
+///acceptance
+{
+ "body": {
+    "sender": "b93a841b4439698b65c56a11cf9f06022efe95ee009279a1391722d7a9cc56d0",
+    "pub_key": "6d2abe0f8a0da56bf3afae4597961db5005fe9851a28899e7640ec6c665ca3f5",
+    "amount": "100",
+    "accept": "true",
+    "seed": "3"
+  },
+  "protocol_version": 0,
+  "service_id": 128,
+  "message_id": 5,
+  "signature": "ae5e7fd46552886a690a4d5f242cb61fea370bb12db186cc169bb54f752dd0d886bfa95ef2d6145b1d75db7ea46fd16dcbf75838789b33af2498e1919e52c10" 
+}
+
+
+//preparation
+
+{
+ "body": {
+    "meta": "hello",
+    "pub_key": "1be76bb0d5e5d5b5488dd36422a183352d2f2687a4bd7e02caba0974624af0bb",
+    "amount": "100",
+    "seed": "3"
+  },
+  "protocol_version": 0,
+  "service_id": 128,
+  "message_id": 4,
+  "signature": "63eed384eabd707ad1faefbf3844351295696aad6a8b323f4405bd295e9190e3722789a237f417c878bf527559e849ad8f18703cecfef05592442186c814850c" 
+}
+//isue
+
+
+{
+ "body": {
+    "pub_key": "539dfc51521861d50e62158c505621ab29dba1f864598916aaaf9bcc56a8fb8d",
+    "amount": "100",
+    "seed": "3"
+  },
+  "protocol_version": 0,
+  "service_id": 128,
+  "message_id": 2,
+  "signature": "d8ace389bf2121a4d132a0088feffe604bfd130f0839c1a3a2d745f07dc94da91f102d95df1c5ef9a32de58a8f1aa5cd260321a3cd5649678b0c33b7dd492707" 
+}
+
+///create wallet
+
+{
+ "body": {
+    "pub_key": "604009ac24c32cb8659a46355b2e81ab606c494af81c42f241ff4aa0cb2bbc6f",
+    "Sasha",
+  },
+  "protocol_version": 0,
+  "service_id": 128,
+  "message_id": 3,
+  "signature": "80c008eac3f6ce413026971833298dd481cf7460ee9bb9687c17e131daa498eedca9b63bb833c76b7613ee95489f4adb9a9952bcf05900cf880806771c637209" 
+}
+
+
+///transfer
+
+{
+ "body": {
+    "from": "35651b878fb334b8dd602b9df4395e162e59f4530eba8f1ac93d3a24529c07a0",
+    "to": "c19aecf83129df5df863afa3f40362b86e0ae1f139d8b4a78cf1849fadbf955b",
+    "amount": "100",
+    "seed": "3",
+  },
+  "protocol_version": 0,
+  "service_id": 128,
+  "message_id": 1,
+  "signature": "4b3be37922b33fdd37e9a15d5c856e04444350980767e50a5f4991923eccf991dec43d04b1ef740bc08dab0811b4c84db96f3b46b8ad52dc3867757064fd3b05" 
+}
