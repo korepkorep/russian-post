@@ -32,7 +32,7 @@ use exonum_testkit::{ApiKind, TestKit, TestKitApi, TestKitBuilder};
 
 // Import data types used in tests from the crate where the service is defined.
 use cryptocurrency::{
-    api::{WalletInfo, WalletQuery}, transactions::{CreateWallet, Transfer, Issue}, wallet::Wallet,
+    api::{WalletInfo, WalletQuery}, transactions::{CreateWallet, Transfer, Issue, MailAcceptance, MailPreparation}, wallet::Wallet,
     CurrencyService,
 };
 
@@ -206,7 +206,7 @@ fn test_unknown_wallet_request() {
 }
 
 #[test]
-fn test_print_signature(){
+fn test_print_signature_issue(){
     let (pubkey, seckey) = gen_keypair();
     let issue = Issue ::new(
     &pubkey,
@@ -215,20 +215,115 @@ fn test_print_signature(){
     &seckey);
     let serialized = serde_json::to_string(&issue).unwrap();
     let signature = sign(&serialized.into_bytes(), &seckey);
-    fn write_to_file(s: &String) -> std::io::Result<()> {
-	    let mut file = File::create("foo.txt")?;
-	    let v = s.clone();
-	    file.write_all(&v.into_bytes())?;
+    /*fn write_to_file(sign: &String, pubkey: &String, seckey: &String) -> std::io::Result<()> {
+	    let mut file = File::create("issue.txt")?;
+	    let sign_f = sign.clone();
+	    let pubkey_f = pubkey.clone();
+	    let seckey_f = seckey.clone();
+	    file.write_all(&sign_f.into_bytes())?;
+	    file.write_all(b"\n");
+	    file.write_all(&pubkey_f.into_bytes())?;
+	    file.write_all(b"\n");
+	    file.write_all(&seckey_f.into_bytes())?;
+	    file.write_all(b"\n");
 	    Ok(())
-    };
+    };*/
     let s = serde_json::to_string(&signature).unwrap();
-    let v = s.clone();
-    write_to_file(&v);
-    println!("u64 = {:5?}\n", &signature);
-    println!("u64 = {:5?}\n u64 = {:5?}\n", &pubkey, &seckey);
+    let p = serde_json::to_string(&pubkey).unwrap();
+    let sk = serde_json::to_string(&seckey).unwrap();
+    ///write_to_file(&s, &p, &sk);
+
+    println!("signature = {:5?}\n", &s);
+    println!("pubkey = {:5?}\n seckey = {:5?}\n", &p, &sk);
     assert_eq!(1, 1);
 }
 
+#[test]
+fn test_print_signature_acceptance(){
+    let (pubkey, seckey) = gen_keypair();
+    let (pubkey_s, _) = gen_keypair();
+    let accept = MailAcceptance ::new(
+    &pubkey,
+    &pubkey_s,
+    100,
+    true,
+    3,
+    &seckey);
+    let serialized = serde_json::to_string(&accept).unwrap();
+    let signature = sign(&serialized.into_bytes(), &seckey);
+    let s = serde_json::to_string(&signature).unwrap();
+    let p = serde_json::to_string(&pubkey).unwrap();
+    let sk = serde_json::to_string(&seckey).unwrap();
+    let p_s = serde_json::to_string(&pubkey_s).unwrap();
+    
+    
+    println!("signature = {:5?}\n", &s);
+    println!("pubkey = {:5?}\n seckey = {:5?}\n", &p, &sk);
+    println!("pubkey_sender = {:5?}\n", &p_s);
+    assert_eq!(1, 1);
+}
+
+#[test]
+fn test_print_signature_preparation(){
+    let (pubkey, seckey) = gen_keypair();
+    let prep = MailPreparation ::new(
+    "hello",
+    &pubkey,
+    100,
+    3,
+    &seckey);
+    let serialized = serde_json::to_string(&prep).unwrap();
+    let signature = sign(&serialized.into_bytes(), &seckey);
+    let s = serde_json::to_string(&signature).unwrap();
+    let p = serde_json::to_string(&pubkey).unwrap();
+    let sk = serde_json::to_string(&seckey).unwrap();
+    
+    println!("signature = {:5?}\n", &s);
+    println!("pubkey = {:5?}\n seckey = {:5?}\n", &p, &sk);
+    assert_eq!(1, 1);
+}
+
+#[test]
+fn test_print_signature_create_wallet(){
+    let (pubkey, seckey) = gen_keypair();
+    let wallet = CreateWallet ::new(
+    &pubkey,
+    "Sasha",
+    &seckey);
+
+    let serialized = serde_json::to_string(&wallet).unwrap();
+    let signature = sign(&serialized.into_bytes(), &seckey);
+    let s = serde_json::to_string(&signature).unwrap();
+    let p = serde_json::to_string(&pubkey).unwrap();
+    let sk = serde_json::to_string(&seckey).unwrap();
+    
+    println!("signature = {:5?}\n", &s);
+    println!("pubkey = {:5?}\n seckey = {:5?}\n", &p, &sk);
+    assert_eq!(1, 1);
+}
+
+#[test]
+fn test_print_signature_transfer(){
+    let (pubkey, seckey) = gen_keypair();
+    let (pubkey_to, _) = gen_keypair();
+    let transfer = Transfer ::new(
+    &pubkey,
+    &pubkey_to,
+    100,
+    3,
+    &seckey);
+
+    let serialized = serde_json::to_string(&transfer).unwrap();
+    let signature = sign(&serialized.into_bytes(), &seckey);
+    let s = serde_json::to_string(&signature).unwrap();
+    let p = serde_json::to_string(&pubkey).unwrap();
+    let sk = serde_json::to_string(&seckey).unwrap();
+    let pub_t = serde_json::to_string(&pubkey_to).unwrap();
+    println!("signature_from = {:5?}\n", &s);
+    println!("pubkey_from = {:5?}\n seckey_from = {:5?}\n", &p, &sk);
+    println!("pubkey_to = {:5?}\n", &pub_t);
+    assert_eq!(1, 1);
+}
 /// Wrapper for the cryptocurrency service API allowing to easily use it
 /// (compared to `TestKitApi` calls).
 struct CryptocurrencyApi {
