@@ -32,7 +32,7 @@ use exonum_testkit::{ApiKind, TestKit, TestKitApi, TestKitBuilder};
 
 // Import data types used in tests from the crate where the service is defined.
 use cryptocurrency::{
-    api::{WalletInfo, WalletQuery}, transactions::{CreateWallet, Transfer, MailPreparation}, wallet::Wallet,
+    api::{WalletInfo, WalletQuery}, transactions::{CreateWallet, Transfer, MailPreparation, Issue, MailAcceptance}, wallet::Wallet,
     CurrencyService,
 };
 
@@ -54,6 +54,96 @@ fn test_create_wallet() {
     let wallet = api.get_wallet(*tx.pub_key()).unwrap();
     assert_eq!(wallet.pub_key(), tx.pub_key());
     assert_eq!(wallet.name(), tx.name());
+    assert_eq!(wallet.balance(), 100);
+}
+
+#[test]
+fn test_acceptance() {
+    let (mut testkit, api) = create_testkit();
+    let (tx_alice, key_alice) = api.create_wallet(ALICE_NAME);
+    let (tx_bob, key_bob) = api.create_wallet(BOB_NAME);
+    testkit.create_block();
+    api.assert_tx_status(tx_alice.hash(), &json!({ "type": "success" }));
+    api.assert_tx_status(tx_bob.hash(), &json!({ "type": "success" }));
+
+    let wallet = api.get_wallet(*tx_alice.pub_key()).unwrap();
+    assert_eq!(wallet.balance(), 100);
+    let wallet = api.get_wallet(*tx_bob.pub_key()).unwrap();
+    assert_eq!(wallet.balance(), 100);
+    
+    let meta = &String::new();
+    let tx = MailPreparation :: new(
+        meta,
+        tx_alice.pub_key(),
+        11,
+        0,
+        &key_alice,
+    );
+
+    api.preparation(&tx);
+    testkit.create_block();
+    api.assert_tx_status(tx.hash(), &json!({ "type": "success" }));
+    let wallet = api.get_wallet(*tx_alice.pub_key()).unwrap();
+    assert_eq!(wallet.balance(), 89);
+    let wallet = api.get_wallet(*tx_bob.pub_key()).unwrap();
+    assert_eq!(wallet.balance(), 100);
+    
+
+    let tx_accept = MailAcceptance :: new(
+        tx_bob.pub_key(),
+        tx_alice.pub_key(),
+        11,
+        false,
+        1,
+        &key_bob,
+    );
+
+    api.acceptance(&tx_accept);
+    testkit.create_block();
+    api.assert_tx_status(tx_accept.hash(), &json!({ "type": "success" }));
+    // After the transfer transaction is included into a block, we may check new wallet
+    // balances.
+    let wallet = api.get_wallet(*tx_alice.pub_key()).unwrap();
+    assert_eq!(wallet.balance(), 100);
+    let wallet = api.get_wallet(*tx_bob.pub_key()).unwrap();
+    assert_eq!(wallet.balance(), 100);
+    
+    let meta = &String::new();
+
+    let tx2 = MailPreparation :: new(
+        meta,
+        tx_alice.pub_key(),
+        11,
+        2,
+        &key_alice,
+    );
+
+    api.preparation(&tx2);
+    testkit.create_block();
+    api.assert_tx_status(tx2.hash(), &json!({ "type": "success" }));
+    let wallet = api.get_wallet(*tx_alice.pub_key()).unwrap();
+    assert_eq!(wallet.balance(), 89);
+    let wallet = api.get_wallet(*tx_bob.pub_key()).unwrap();
+    assert_eq!(wallet.balance(), 100);
+    
+
+    let tx3 = MailAcceptance :: new(
+        tx_bob.pub_key(),
+        tx_alice.pub_key(),
+        11,
+        true,
+        3,
+        &key_bob,
+    );
+
+    api.acceptance(&tx3);
+    testkit.create_block();
+    api.assert_tx_status(tx3.hash(), &json!({ "type": "success" }));
+    // After the transfer transaction is included into a block, we may check new wallet
+    // balances.
+    let wallet = api.get_wallet(*tx_alice.pub_key()).unwrap();
+    assert_eq!(wallet.balance(), 89);
+    let wallet = api.get_wallet(*tx_bob.pub_key()).unwrap();
     assert_eq!(wallet.balance(), 100);
 }
 
@@ -129,6 +219,7 @@ fn test_transfer() {
     let wallet = api.get_wallet(*tx_bob.pub_key()).unwrap();
     assert_eq!(wallet.balance(), 110);
 }
+
 
 /// Check that a transfer from a non-existing wallet fails as expected.
 #[test]
@@ -288,6 +379,15 @@ impl CryptocurrencyApi {
             .unwrap();
         assert_eq!(tx_info, json!({ "tx_hash": tx.hash() }));
     }
+
+    fn acceptance(&self, tx: &MailAcceptance) {
+        let tx_info: serde_json::Value = self.inner
+            .public(ApiKind::Service("cryptocurrency"))
+            .query(&tx)
+            .post("v1/wallets/transaction")
+            .unwrap();
+        assert_eq!(tx_info, json!({ "tx_hash": tx.hash() }));        
+    }
     
     /// Sends a transfer transaction over HTTP and checks the synchronous result.
     fn transfer(&self, tx: &Transfer) {
@@ -298,6 +398,7 @@ impl CryptocurrencyApi {
             .unwrap();
         assert_eq!(tx_info, json!({ "tx_hash": tx.hash() }));
     }
+
 
     /// Asserts that a wallet with the specified public key is not known to the blockchain.
     fn assert_no_wallet(&self, pub_key: PublicKey) {
