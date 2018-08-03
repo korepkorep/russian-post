@@ -23,7 +23,9 @@ use exonum::{
 
 use schema::CurrencySchema;
 use CRYPTOCURRENCY_SERVICE_ID;
-
+use BLOCK_SIZE;
+use NUM_BLOCKS;
+use SP;
 /// Error codes emitted by wallet transactions during execution.
 #[derive(Debug, Fail)]
 #[repr(u8)]
@@ -70,6 +72,7 @@ transactions! {
             to:      &PublicKey,
             amount:  u64,
             seed:    u64,
+            //priority: f64, 
         }
 
         /// Issue `amount` of the currency to the `wallet`.
@@ -84,7 +87,49 @@ transactions! {
             pub_key: &PublicKey,
             name:    &str,
         }
+
+        struct MailPreparation {
+            meta: &str,
+            pub_key: &PublicKey,
+            amount: u64,
+            seed: u64,
+         //   priority: f64,
+        }
+
+        struct MailAcceptance {
+            pub_key: &PublicKey,
+            sender_key: &PublicKey,
+            amount: u64,
+            accept:  bool,
+            seed: u64,
+        }
+//INSERT one type
+/*        struct Cancellation {
+            pub_key: &PublicKey,
+            name: &str,
+        }
+*/    }
+}
+
+impl Transaction for Issue {
+    fn verify(&self) -> bool {
+        self.verify_signature(self.pub_key())
     }
+
+    fn execute(&self, fork: &mut Fork) -> ExecutionResult {
+        let mut schema = CurrencySchema :: new(fork);
+        let pub_key = self.pub_key();
+        let hash = self.hash();
+
+        if let Some(wallet) = schema.wallet(pub_key) {
+            let amount = self.amount();
+            schema.increase_wallet_balance(wallet, amount, &hash, 0);
+            Ok(())
+        } else {
+            Err(Error::ReceiverNotFound)?
+        }
+    }
+
 }
 
 impl Transaction for Transfer {
@@ -94,45 +139,34 @@ impl Transaction for Transfer {
 
     fn execute(&self, fork: &mut Fork) -> ExecutionResult {
         let mut schema = CurrencySchema::new(fork);
-
         let from = self.from();
         let to = self.to();
         let hash = self.hash();
         let amount = self.amount();
+        let freezed_balance = 0;
+        let sender = schema.wallet(from).ok_or(Error :: SenderNotFound)?;
 
-        let sender = schema.wallet(from).ok_or(Error::SenderNotFound)?;
-
-        let receiver = schema.wallet(to).ok_or(Error::ReceiverNotFound)?;
+        let receiver = schema.wallet(to).ok_or(Error :: ReceiverNotFound)?;
 
         if sender.balance() < amount {
-            Err(Error::InsufficientCurrencyAmount)?
+            Err(Error::InsufficientCurrencyAmount)?;
+
         }
 
-        schema.decrease_wallet_balance(sender, amount, &hash);
-        schema.increase_wallet_balance(receiver, amount, &hash);
+        schema.decrease_wallet_balance(sender, amount, &hash, freezed_balance);
+        schema.increase_wallet_balance(receiver, amount, &hash, freezed_balance);
+
 
         Ok(())
     }
-}
-
-impl Transaction for Issue {
-    fn verify(&self) -> bool {
-        self.verify_signature(self.pub_key())
-    }
-
-    fn execute(&self, fork: &mut Fork) -> ExecutionResult {
+/*
+    fn set_priority(&self, fork: &mut Fork, block_size: u64, num_block_week: u64, steem_pow: f64) {
         let mut schema = CurrencySchema::new(fork);
-        let pub_key = self.pub_key();
-        let hash = self.hash();
-
-        if let Some(wallet) = schema.wallet(pub_key) {
-            let amount = self.amount();
-            schema.increase_wallet_balance(wallet, amount, &hash);
-            Ok(())
-        } else {
-            Err(Error::ReceiverNotFound)?
-        }
-    }
+        let from = self.from();
+        let sender = schema.wallet(from).ok_or(Error :: SenderNotFound)?;
+        self.priority() = sender.balance() * block_size * num_block_week / steem_pow;
+        
+    }*/
 }
 
 impl Transaction for CreateWallet {
@@ -145,12 +179,68 @@ impl Transaction for CreateWallet {
         let pub_key = self.pub_key();
         let hash = self.hash();
 
-        if schema.wallet(pub_key).is_none() {
+        if schema.wallet(pub_key).is_none(){
             let name = self.name();
-            schema.create_wallet(pub_key, name, &hash);
+            let freezed_balance = 0;
+            schema.create_wallet(pub_key, name, &hash, freezed_balance);
             Ok(())
         } else {
             Err(Error::WalletAlreadyExists)?
+        } 
+    }    
+}
+
+
+impl Transaction for MailPreparation {
+    fn verify(&self) -> bool {
+        self.verify_signature(self.pub_key())
+    }
+
+    fn execute(&self, fork: &mut Fork) -> ExecutionResult {
+        let mut schema = CurrencySchema :: new(fork);
+        let pub_key = self.pub_key();
+        let amount = self.amount();
+        let hash = self.hash();
+        let sender = schema.wallet(pub_key).ok_or(Error :: SenderNotFound)?;
+        if sender.balance() < amount {
+            Err(Error::InsufficientCurrencyAmount)?;
         }
+        // freeze_wallet_balance rrealize
+        schema.decrease_wallet_balance(sender, amount, &hash, amount);
+        Ok(())
+    }
+/*
+    fn set_priority(&self, fork: &mut Fork, block_size: u64, num_block_week: u64, steem_pow: f64) {
+        let mut schema = CurrencySchema::new(fork);
+        let from = self.from();
+        let sender = schema.wallet(from).ok_or(Error :: SenderNotFound)?;
+        self.priority() = sender.balance() * block_size * num_block_week / steem_pow;
+    }    */
+}
+
+
+impl Transaction for MailAcceptance {
+    fn verify(&self) -> bool {
+        self.verify_signature(self.pub_key())
+    }
+
+
+
+    fn execute(&self, fork: &mut Fork) -> ExecutionResult {
+        let mut schema = CurrencySchema :: new(fork);
+        let sender_key = self.sender_key();
+        let accept = self.accept();
+        let hash = self.hash();
+        let sender = schema.wallet(sender_key).ok_or(Error :: SenderNotFound)?;
+        if accept {
+            let freezed_balance = 0;
+            schema.decrease_wallet_balance(sender, freezed_balance, &hash, freezed_balance);
+        } else {
+            let amount = sender.freezed_balance();
+            let freezed_balance = 0;
+            schema.increase_wallet_balance(sender, amount, &hash, freezed_balance);
+        }
+        Ok(())
+
     }
 }

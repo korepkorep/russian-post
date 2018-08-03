@@ -18,7 +18,9 @@ use exonum::{
 
 use wallet::Wallet;
 use INITIAL_BALANCE;
-
+use BLOCK_SIZE;
+use NUM_BLOCKS;
+use SP;
 /// Database schema for the cryptocurrency.
 #[derive(Debug)]
 pub struct CurrencySchema<T> {
@@ -59,6 +61,7 @@ where
     pub fn state_hash(&self) -> Vec<Hash> {
         vec![self.wallets().merkle_root()]
     }
+
 }
 
 /// Implementation of mutable methods.
@@ -79,13 +82,14 @@ impl<'a> CurrencySchema<&'a mut Fork> {
     /// Increase balance of the wallet and append new record to its history.
     ///
     /// Panics if there is no wallet with given public key.
-    pub fn increase_wallet_balance(&mut self, wallet: Wallet, amount: u64, transaction: &Hash) {
+    pub fn increase_wallet_balance(&mut self, wallet: Wallet, amount: u64, transaction: &Hash, freezed_balance: u64) {
         let wallet = {
             let mut history = self.wallet_history_mut(wallet.pub_key());
             history.push(*transaction);
             let history_hash = history.merkle_root();
             let balance = wallet.balance();
-            wallet.set_balance(balance + amount, &history_hash)
+            /////////////////////////////
+            wallet.set_balance(balance + amount, &history_hash, freezed_balance)
         };
         self.wallets_mut().put(wallet.pub_key(), wallet.clone());
     }
@@ -93,24 +97,26 @@ impl<'a> CurrencySchema<&'a mut Fork> {
     /// Decrease balance of the wallet and append new record to its history.
     ///
     /// Panics if there is no wallet with given public key.
-    pub fn decrease_wallet_balance(&mut self, wallet: Wallet, amount: u64, transaction: &Hash) {
+    pub fn decrease_wallet_balance(&mut self, wallet: Wallet, amount: u64, transaction: &Hash, freezed_balance: u64) {
         let wallet = {
             let mut history = self.wallet_history_mut(wallet.pub_key());
             history.push(*transaction);
             let history_hash = history.merkle_root();
             let balance = wallet.balance();
-            wallet.set_balance(balance - amount, &history_hash)
+            /////////////////////////////
+            wallet.set_balance(balance - amount, &history_hash, freezed_balance)
         };
         self.wallets_mut().put(wallet.pub_key(), wallet.clone());
     }
 
     /// Create new wallet and append first record to its history.
-    pub fn create_wallet(&mut self, key: &PublicKey, name: &str, transaction: &Hash) {
+    pub fn create_wallet(&mut self, key: &PublicKey, name: &str, transaction: &Hash, freezed_balance: u64) {
         let wallet = {
             let mut history = self.wallet_history_mut(key);
             history.push(*transaction);
             let history_hash = history.merkle_root();
-            Wallet::new(key, name, INITIAL_BALANCE, history.len(), &history_hash)
+            let freezed_balance = 0;
+            Wallet::new(key, name, INITIAL_BALANCE, history.len(), &history_hash, freezed_balance)
         };
         self.wallets_mut().put(key, wallet);
     }
