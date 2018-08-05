@@ -1,3 +1,4 @@
+
 // Copyright 2018 The Exonum Team
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,17 +13,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Workaround for `failure` see https://github.com/rust-lang-nursery/failure/issues/223 and
-// ECR-1771 for the details.
-#![allow(bare_trait_objects)]
+#![ allow( bare_trait_objects ) ]
 
-use exonum::{
-    blockchain::{ExecutionError, ExecutionResult, Transaction}, crypto::{CryptoHash, PublicKey},
-    messages::Message, storage::Fork,
-};
+extern crate serde_json;
+extern crate serde;
 
-use schema::CurrencySchema;
+use self::serde_json::{Value};
+
+use serde::{Deserialize, Serialize, Deserializer, Serializer};
+
+use exonum::blockchain::{ExecutionError, ExecutionResult, Transaction};
+use exonum::crypto::{CryptoHash, PublicKey, Hash};
+use exonum::messages::Message;
+use exonum::storage::Fork;
+use exonum::storage::StorageValue;
+
 use CRYPTOCURRENCY_SERVICE_ID;
+use schema::CurrencySchema;
+
 
 /// Error codes emitted by wallet transactions during execution.
 #[derive(Debug, Fail)]
@@ -75,6 +83,7 @@ transactions! {
         /// Issue `amount` of the currency to the `wallet`.
         struct Issue {
             pub_key:  &PublicKey,
+            issuer_key: &PublicKey,
             amount:  u64,
             seed:    u64,
         }
@@ -84,8 +93,52 @@ transactions! {
             pub_key: &PublicKey,
             name:    &str,
         }
+
+        struct MailPreparation {
+            meta: &str,
+            pub_key: &PublicKey,
+            amount: u64,
+            seed: u64,
+        }
+
+        struct MailAcceptance {
+            sender: &PublicKey,
+            pub_key: &PublicKey,
+            amount: u64,
+            accept:  bool,
+            seed: u64,
+        }
+        
+        struct Cancellation {
+            pub_key: &PublicKey,
+            sender: &PublicKey,
+            tx_hash: &Hash,
+            type_transaction: u64,
+        }
     }
 }
+
+impl Transaction for Issue {
+    fn verify(&self) -> bool {
+        self.verify_signature(self.issuer_key())
+    }
+
+    fn execute(&self, fork: &mut Fork) -> ExecutionResult {
+        let mut schema = CurrencySchema :: new(fork);
+        let pub_key = self.pub_key();
+        let hash = self.hash();
+
+        if let Some(wallet) = schema.wallet(pub_key) {
+            let amount = self.amount();
+            schema.increase_wallet_balance(wallet, amount, &hash, 0);
+            Ok(())
+        } else {
+            Err(Error::ReceiverNotFound)?
+        }
+    }
+
+}
+
 
 impl Transaction for Transfer {
     fn verify(&self) -> bool {
@@ -94,44 +147,24 @@ impl Transaction for Transfer {
 
     fn execute(&self, fork: &mut Fork) -> ExecutionResult {
         let mut schema = CurrencySchema::new(fork);
-
         let from = self.from();
         let to = self.to();
         let hash = self.hash();
         let amount = self.amount();
+        let freezed_balance = 0;
+        let sender = schema.wallet(from).ok_or(Error :: SenderNotFound)?;
 
-        let sender = schema.wallet(from).ok_or(Error::SenderNotFound)?;
-
-        let receiver = schema.wallet(to).ok_or(Error::ReceiverNotFound)?;
+        let receiver = schema.wallet(to).ok_or(Error :: ReceiverNotFound)?;
 
         if sender.balance() < amount {
-            Err(Error::InsufficientCurrencyAmount)?
+            Err(Error::InsufficientCurrencyAmount)?;
+
         }
 
-        schema.decrease_wallet_balance(sender, amount, &hash);
-        schema.increase_wallet_balance(receiver, amount, &hash);
+        schema.decrease_wallet_balance(sender, amount, &hash, freezed_balance);
+        schema.increase_wallet_balance(receiver, amount, &hash, freezed_balance);
 
         Ok(())
-    }
-}
-
-impl Transaction for Issue {
-    fn verify(&self) -> bool {
-        self.verify_signature(self.pub_key())
-    }
-
-    fn execute(&self, fork: &mut Fork) -> ExecutionResult {
-        let mut schema = CurrencySchema::new(fork);
-        let pub_key = self.pub_key();
-        let hash = self.hash();
-
-        if let Some(wallet) = schema.wallet(pub_key) {
-            let amount = self.amount();
-            schema.increase_wallet_balance(wallet, amount, &hash);
-            Ok(())
-        } else {
-            Err(Error::ReceiverNotFound)?
-        }
     }
 }
 
@@ -145,12 +178,144 @@ impl Transaction for CreateWallet {
         let pub_key = self.pub_key();
         let hash = self.hash();
 
-        if schema.wallet(pub_key).is_none() {
+        if schema.wallet(pub_key).is_none(){
             let name = self.name();
-            schema.create_wallet(pub_key, name, &hash);
+            let freezed_balance = 0;
+            schema.create_wallet(pub_key, name, &hash, freezed_balance);
             Ok(())
         } else {
             Err(Error::WalletAlreadyExists)?
+        } 
+    }    
+}
+
+
+impl Transaction for MailPreparation {
+    fn verify(&self) -> bool {
+        self.verify_signature(self.pub_key())
+    }
+
+    fn execute(&self, fork: &mut Fork) -> ExecutionResult {
+        let mut schema = CurrencySchema :: new(fork);
+        let pub_key = self.pub_key();
+        let amount = self.amount();
+        let hash = self.hash();
+        let sender = schema.wallet(pub_key).ok_or(Error :: SenderNotFound)?;
+        if sender.balance() < amount {
+            Err(Error::InsufficientCurrencyAmount)?;
+        }
+        // freeze_wallet_balance rrealize
+        schema.decrease_wallet_balance(sender, amount, &hash, amount);
+        Ok(())
+    }
+}
+
+
+impl Transaction for MailAcceptance {
+    fn verify(&self) -> bool {
+        self.verify_signature(self.pub_key())
+    }
+
+
+
+    fn execute(&self, fork: &mut Fork) -> ExecutionResult {
+        let mut schema = CurrencySchema :: new(fork);
+        let sender_key = self.sender();
+
+        let hash = self.hash();
+        let sender = schema.wallet(sender_key).ok_or(Error :: SenderNotFound)?;
+        let freezed_balance = 0;
+        schema.decrease_wallet_balance(sender, freezed_balance, &hash, freezed_balance);
+        Ok(())
+
+    }
+}
+
+impl Transaction for Cancellation {
+    fn verify(&self) -> bool {
+        self.verify_signature(self.pub_key())
+    }
+    fn execute(&self, fork: &mut Fork) -> ExecutionResult {
+        let mut schema = CurrencySchema :: new(fork);
+        let sender_key = self.sender();
+        let tx_hash = self.tx_hash();
+        ///pub fn transaction(schema: &CurrencySchema<T>, tx_hash: &Hash) -> Option<Transaction> {
+        let raw_tx = schema.transactions().get(&tx_hash).unwrap();
+        
+        let content: Value = serde_json::from_slice(&raw_tx.into_bytes()).unwrap();
+        
+        let id = self.type_transaction();
+        if id == 1 { //Transfer
+            let transaction: Transfer = serde_json::from_value(content.clone()).unwrap();
+            let from = transaction.from();
+            let to = transaction.to();
+            let amount = transaction.amount();
+            let wallet_from = schema.wallet(&from).ok_or(Error :: SenderNotFound)?;
+            let wallet_to = schema.wallet(to).ok_or(Error :: ReceiverNotFound)?;
+            schema.decrease_wallet_balance(wallet_to, amount, &tx_hash, 0);
+            schema.increase_wallet_balance(wallet_from, amount, &tx_hash, 0);
+        }/* else if id == 2 { //issue
+            let pub_key = transaction.pub_key();
+            let amount = transaction.amount();
+            let sender = schema.wallet(pub_key).ok_or(Error :: ReceiverNotFound)?;
+            schema.decrease_wallet_balance(sender, amount, &tx_hash, 0);
+        }*/
+        Ok(())
+
+    }
+}
+/*
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "kebab-case", bound(serialize = "T: SerializeContent"))]
+pub enum TransactionInfo<T = Box<dyn Transaction>> {
+    /// Transaction is in the memory pool, but not yet committed to the blockchain.
+    InPool {
+        /// Transaction contents.
+        #[serde(serialize_with = "SerializeContent::serialize_content")]
+        content: T,
+    },
+
+    /// Transaction is already committed to the blockchain.
+    Committed(CommittedTransaction<T>),
+}
+impl<T> TransactionInfo<T> {
+    /// Returns the content of this transaction.
+    pub fn content(&self) -> &T {
+        match *self {
+            TransactionInfo::InPool { ref content } => content,
+            TransactionInfo::Committed(ref tx) => tx.content(),
+        }
+    }
+
+    /// Is this in-pool transaction?
+    pub fn is_in_pool(&self) -> bool {
+        match *self {
+            TransactionInfo::InPool { .. } => true,
+            _ => false,
+        }
+    }
+
+    /// Is this a committed transaction?
+    pub fn is_committed(&self) -> bool {
+        match *self {
+            TransactionInfo::Committed(_) => true,
+            _ => false,
+        }
+    }
+
+    /// Returns a reference to the inner committed transaction if this transaction is committed.
+    /// For transactions in pool, returns `None`.
+    pub fn as_committed(&self) -> Option<&CommittedTransaction<T>> {
+        match *self {
+            TransactionInfo::Committed(ref tx) => Some(tx),
+            _ => None,
         }
     }
 }
+
+pub trait SerializeContent {
+    /// Serializes content of a transaction with the given serializer.
+    fn serialize_content<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer;
+}*/
