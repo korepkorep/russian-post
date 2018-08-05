@@ -56,7 +56,73 @@ fn test_create_wallet() {
     assert_eq!(wallet.name(), tx.name());
     assert_eq!(wallet.balance(), 100);
 }
+/*
+#[test]
+fn test_checkin_coefficient() {
+    let (mut testkit, api) = create_testkit();
+    // Create and send a transaction via API
+    let (tx, _) = api.create_wallet(ALICE_NAME);
+    testkit.create_block();
+    api.assert_tx_status(tx.hash(), &json!({ "type": "success" }));
 
+    // Check that the user indeed is persisted by the service.
+    let wallet = api.get_wallet(*tx.pub_key()).unwrap();
+    assert_eq!(wallet.pub_key(), tx.pub_key());
+    assert_eq!(wallet.name(), tx.name());
+    assert_eq!(wallet.balance(), 100);
+
+    let tx = Transfer::new(
+        tx_alice.pub_key(),
+        tx_bob.pub_key(),
+        10, // transferred amount
+        0,  // seed
+        &key_alice,
+    );
+    api.transfer(&tx);
+    testkit.create_block();
+    api.assert_tx_status(tx.hash(), &json!({ "type": "success" }));
+
+    // After the transfer transaction is included into a block, we may check new wallet
+    // balances.
+    let wallet = api.get_wallet(*tx_alice.pub_key()).unwrap();
+    assert_eq!(wallet.balance(), 90);
+    assert_eq!(tx.set_priority(wallet.balance, 1,2,3.0), 60.0);
+    let wallet = api.get_wallet(*tx_bob.pub_key()).unwrap();
+    assert_eq!(wallet.balance(), 110);
+
+}
+*/
+
+#[test]
+fn test_issue() {
+    let (mut testkit, api) = create_testkit();
+    let (tx_alice, key_alice) = api.create_wallet(ALICE_NAME);
+    let (tx_bob, key_bob) = api.create_wallet(BOB_NAME);
+    testkit.create_block();
+    api.assert_tx_status(tx_alice.hash(), &json!({ "type": "success" }));
+    api.assert_tx_status(tx_bob.hash(), &json!({ "type": "success" }));
+
+    let wallet = api.get_wallet(*tx_alice.pub_key()).unwrap();
+    assert_eq!(wallet.balance(), 100);
+    let wallet = api.get_wallet(*tx_bob.pub_key()).unwrap();
+
+    let tx = Issue :: new(
+        tx_alice.pub_key(),
+        tx_bob.pub_key(),
+        11,
+        0,
+        &key_bob,
+    );
+
+    api.issue(&tx);
+    testkit.create_block();
+    api.assert_tx_status(tx.hash(), &json!({ "type": "success" }));
+    let wallet = api.get_wallet(*tx_alice.pub_key()).unwrap();
+    assert_eq!(wallet.balance(), 111);
+    let wallet = api.get_wallet(*tx_bob.pub_key()).unwrap();
+    assert_eq!(wallet.balance(), 100);    
+
+}
 #[test]
 fn test_acceptance() {
     let (mut testkit, api) = create_testkit();
@@ -126,7 +192,7 @@ fn test_acceptance() {
     let wallet = api.get_wallet(*tx_bob.pub_key()).unwrap();
     assert_eq!(wallet.balance(), 100);
     
-
+    println!("{}", serde_json::to_string_pretty(&tx2).unwrap());
     let tx3 = MailAcceptance :: new(
         tx_bob.pub_key(),
         tx_alice.pub_key(),
@@ -145,6 +211,7 @@ fn test_acceptance() {
     assert_eq!(wallet.balance(), 89);
     let wallet = api.get_wallet(*tx_bob.pub_key()).unwrap();
     assert_eq!(wallet.balance(), 100);
+    println!("{}", serde_json::to_string_pretty(&tx3).unwrap());
 }
 
 #[test]
@@ -391,6 +458,15 @@ impl CryptocurrencyApi {
     
     /// Sends a transfer transaction over HTTP and checks the synchronous result.
     fn transfer(&self, tx: &Transfer) {
+        let tx_info: serde_json::Value = self.inner
+            .public(ApiKind::Service("cryptocurrency"))
+            .query(&tx)
+            .post("v1/wallets/transaction")
+            .unwrap();
+        assert_eq!(tx_info, json!({ "tx_hash": tx.hash() }));
+    }
+
+    fn issue(&self, tx: &Issue) {
         let tx_info: serde_json::Value = self.inner
             .public(ApiKind::Service("cryptocurrency"))
             .query(&tx)
