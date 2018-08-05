@@ -32,15 +32,13 @@ use exonum_testkit::{ApiKind, TestKit, TestKitApi, TestKitBuilder};
 
 // Import data types used in tests from the crate where the service is defined.
 use cryptocurrency::{
-    api::{WalletInfo, WalletQuery}, transactions::{CreateWallet, Transfer, Issue, MailAcceptance, MailPreparation}, wallet::Wallet,
+    api::{WalletInfo, WalletQuery}, transactions::{CreateWallet, Transfer, Issue, MailAcceptance, MailPreparation, Cancellation}, wallet::Wallet,
     CurrencyService,
 };
 
 // Imports shared test constants.
-use constants::{ALICE_NAME, BOB_NAME};
+use constants::{ALICE_NAME, BOB_NAME, JOHN_NAME};
 
-use std::fs::File;
-use std::io::prelude::*;
 
 mod constants;
 
@@ -95,6 +93,37 @@ fn test_transfer() {
     assert_eq!(wallet.balance(), 90);
     let wallet = api.get_wallet(*tx_bob.pub_key()).unwrap();
     assert_eq!(wallet.balance(), 110);
+}
+
+#[test]
+fn test_issue() {
+    let (mut testkit, api) = create_testkit();
+    let (tx_alice, key_alice) = api.create_wallet(ALICE_NAME);
+    let (tx_bob, key_bob) = api.create_wallet(BOB_NAME);
+    testkit.create_block();
+    api.assert_tx_status(tx_alice.hash(), &json!({ "type": "success" }));
+    api.assert_tx_status(tx_bob.hash(), &json!({ "type": "success" }));
+
+    let wallet = api.get_wallet(*tx_alice.pub_key()).unwrap();
+    assert_eq!(wallet.balance(), 100);
+    let wallet = api.get_wallet(*tx_bob.pub_key()).unwrap();
+
+    let tx = Issue :: new(
+        tx_alice.pub_key(),
+        tx_bob.pub_key(),
+        11,
+        0,
+        &key_bob,
+    );
+
+    api.issue(&tx);
+    testkit.create_block();
+    api.assert_tx_status(tx.hash(), &json!({ "type": "success" }));
+    let wallet = api.get_wallet(*tx_alice.pub_key()).unwrap();
+    assert_eq!(wallet.balance(), 111);
+    let wallet = api.get_wallet(*tx_bob.pub_key()).unwrap();
+    assert_eq!(wallet.balance(), 100);    
+
 }
 
 /// Check that a transfer from a non-existing wallet fails as expected.
@@ -206,10 +235,67 @@ fn test_unknown_wallet_request() {
 }
 
 #[test]
+fn test_cancellation() {
+    let (mut testkit, api) = create_testkit();
+    let (tx_alice, _) = api.create_wallet(ALICE_NAME);
+    let (tx_bob, key_bob) = api.create_wallet(BOB_NAME);
+    let (tx_john, key_john) = api.create_wallet(JOHN_NAME);
+    testkit.create_block();
+    api.assert_tx_status(tx_alice.hash(), &json!({ "type": "success" }));
+    api.assert_tx_status(tx_bob.hash(), &json!({ "type": "success" }));
+    api.assert_tx_status(tx_john.hash(), &json!({ "type": "success" }));
+ 
+
+
+    let wallet = api.get_wallet(*tx_alice.pub_key()).unwrap();
+    assert_eq!(wallet.balance(), 100);
+    let wallet = api.get_wallet(*tx_bob.pub_key()).unwrap();
+    assert_eq!(wallet.balance(), 100);
+    let tx_transfer = Transfer :: new(
+    	tx_bob.pub_key(),
+    	tx_alice.pub_key(),
+    	60,
+    	4,
+    	&key_bob,
+    );
+    api.transfer(&tx_transfer);
+    testkit.create_block();
+    api.assert_tx_status(tx_transfer.hash(), &json!({ "type": "success" }));
+
+    let tx_hash = &tx_transfer.hash();
+
+    let wallet = api.get_wallet(*tx_alice.pub_key()).unwrap();
+    assert_eq!(wallet.balance(), 160);
+    let wallet = api.get_wallet(*tx_bob.pub_key()).unwrap();
+    assert_eq!(wallet.balance(), 40);
+
+    let tx = Cancellation :: new(
+        tx_john.pub_key(),
+        tx_bob.pub_key(),
+        &tx_hash,
+        1,
+        &key_john,
+    );
+    api.cancellation(&tx);
+    testkit.create_block();
+    api.assert_tx_status(tx.hash(), &json!({ "type": "success" }));
+
+    // After the transfer transaction is included into a block, we may check new wallet
+    // balances.
+
+    let wallet = api.get_wallet(*tx_alice.pub_key()).unwrap();
+    assert_eq!(wallet.balance(), 100);
+    let wallet = api.get_wallet(*tx_bob.pub_key()).unwrap();
+    assert_eq!(wallet.balance(), 100);
+}
+
+#[test]
 fn test_print_signature_issue(){
-    let (pubkey, seckey) = gen_keypair();
+    let (pubkey, _) = gen_keypair();
+    let (issuer_key, seckey) = gen_keypair();
     let issue = Issue ::new(
     &pubkey,
+    &issuer_key,
     100,
     3,
     &seckey);
@@ -376,6 +462,27 @@ impl CryptocurrencyApi {
         assert_eq!(tx_info, json!({ "tx_hash": tx.hash() }));
     }
 
+    fn issue(&self, tx: &Issue) {
+        let tx_info: serde_json::Value = self.inner
+            .public(ApiKind::Service("cryptocurrency"))
+            .query(&tx)
+            .post("v1/wallets/transaction")
+            .unwrap();
+
+
+        assert_eq!(tx_info, json!({ "tx_hash": tx.hash() }));
+    }
+
+    fn cancellation(&self, tx: &Cancellation) {
+    	let tx_info: serde_json::Value = self.inner
+            .public(ApiKind::Service("cryptocurrency"))
+            .query(&tx)
+            .post("v1/wallets/transaction")
+            .unwrap();
+
+        assert_eq!(tx_info, json!({ "tx_hash": tx.hash()}));
+    }
+
     /// Asserts that a wallet with the specified public key is not known to the blockchain.
     fn assert_no_wallet(&self, pub_key: PublicKey) {
         let wallet_info: WalletInfo = self.inner
@@ -401,7 +508,7 @@ impl CryptocurrencyApi {
             .query(&TransactionQuery::new(tx_hash))
             .get("v1/transactions")
             .unwrap();
-
+        println!("info = {:?}", info);
         if let serde_json::Value::Object(mut info) = info {
             let tx_status = info.remove("status").unwrap();
             assert_eq!(tx_status, *expected_status);
