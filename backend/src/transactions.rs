@@ -18,15 +18,19 @@
 extern crate serde_json;
 extern crate serde;
 
-use self::serde_json::{Value};
 
 use serde::{Deserialize, Serialize, Deserializer, Serializer};
 
 use exonum::blockchain::{ExecutionError, ExecutionResult, Transaction};
-use exonum::crypto::{CryptoHash, PublicKey, Hash};
+use exonum::crypto::{CryptoHash, PublicKey, Hash, gen_keypair};
 use exonum::messages::Message;
 use exonum::storage::Fork;
 use exonum::storage::StorageValue;
+use exonum::messages::RawMessage;
+use exonum::storage::Snapshot;
+//use exonum::messages::Message::from_raw;
+use exonum::explorer::TransactionInfo;
+
 
 use CRYPTOCURRENCY_SERVICE_ID;
 use schema::CurrencySchema;
@@ -235,18 +239,36 @@ impl Transaction for Cancellation {
     fn verify(&self) -> bool {
         self.verify_signature(self.pub_key())
     }
+
+    
+
     fn execute(&self, fork: &mut Fork) -> ExecutionResult {
         let mut schema = CurrencySchema :: new(fork);
         let sender_key = self.sender();
         let tx_hash = self.tx_hash();
         ///pub fn transaction(schema: &CurrencySchema<T>, tx_hash: &Hash) -> Option<Transaction> {
         let raw_tx = schema.transactions().get(&tx_hash).unwrap();
+       //println!("transactions = {:?}", &raw_tx.body());
+        //let json = serde_json::to_value(&raw_tx.into_bytes()).unwrap();
+        //let info: Transfer = serde_json::from_value(json).unwrap();
+        let transaction: Transfer = Message::from_raw(raw_tx.clone()).unwrap();
+        //println!("transactions2 = {:?}", StorageValue :: from_bytes(t));
+
         
-        let content: Value = serde_json::from_slice(&raw_tx.into_bytes()).unwrap();
         
+        /*match raw_tx {
+            Some(v) => v,
+            None => Err(Error :: SenderNotFound)?,
+        };*/
+        //assert_eq!(raw_tx, None);
+
+        /*let content: Value = match serde_json::from_slice(&raw_tx.into_bytes()) {
+            Ok(r) => r,
+            Err(_er) => Err(Error :: ReceiverNotFound)?,
+        };
+        */
         let id = self.type_transaction();
         if id == 1 { //Transfer
-            let transaction: Transfer = serde_json::from_value(content.clone()).unwrap();
             let from = transaction.from();
             let to = transaction.to();
             let amount = transaction.amount();
@@ -263,6 +285,7 @@ impl Transaction for Cancellation {
         Ok(())
 
     }
+
 }
 /*
 #[derive(Debug, Serialize, Deserialize)]
