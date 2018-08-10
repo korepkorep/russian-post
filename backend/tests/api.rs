@@ -235,7 +235,7 @@ fn test_unknown_wallet_request() {
 }
 
 #[test]
-fn test_cancellation() {
+fn test_cancellation_transfer() {
     let (mut testkit, api) = create_testkit();
     let (tx_alice, _) = api.create_wallet(ALICE_NAME);
     let (tx_bob, key_bob) = api.create_wallet(BOB_NAME);
@@ -273,7 +273,6 @@ fn test_cancellation() {
         tx_john.pub_key(),
         tx_bob.pub_key(),
         &tx_hash,
-        1,
         &key_john,
     );
     api.cancellation(&tx);
@@ -289,6 +288,56 @@ fn test_cancellation() {
     assert_eq!(wallet.balance(), 100);
 }
 
+
+#[test]
+fn test_cancellation_issue() {
+    let (mut testkit, api) = create_testkit();
+    let (tx_alice, _) = api.create_wallet(ALICE_NAME);
+    let (tx_bob, key_bob) = api.create_wallet(BOB_NAME);
+    testkit.create_block();
+    api.assert_tx_status(tx_alice.hash(), &json!({ "type": "success" }));
+    api.assert_tx_status(tx_bob.hash(), &json!({ "type": "success" }));
+ 
+
+
+    let wallet = api.get_wallet(*tx_alice.pub_key()).unwrap();
+    assert_eq!(wallet.balance(), 100);
+
+    let tx_issue = Issue :: new(
+    	tx_alice.pub_key(),
+    	tx_bob.pub_key(),
+    	60,
+    	4,
+    	&key_bob,
+    );
+    api.issue(&tx_issue);
+    testkit.create_block();
+    api.assert_tx_status(tx_issue.hash(), &json!({ "type": "success" }));
+
+    let tx_hash = &tx_issue.hash();
+
+    let wallet = api.get_wallet(*tx_alice.pub_key()).unwrap();
+    assert_eq!(wallet.balance(), 160);
+
+    let tx = Cancellation :: new(
+        tx_bob.pub_key(),
+        tx_alice.pub_key(),
+        &tx_hash,
+        &key_bob,
+    );
+    api.cancellation(&tx);
+    testkit.create_block();
+    api.assert_tx_status(tx.hash(), &json!({ "type": "success" }));
+
+    // After the transfer transaction is included into a block, we may check new wallet
+    // balances.
+
+    let wallet = api.get_wallet(*tx_alice.pub_key()).unwrap();
+    assert_eq!(wallet.balance(), 100);
+    let wallet = api.get_wallet(*tx_bob.pub_key()).unwrap();
+    assert_eq!(wallet.balance(), 100);
+}
+/*
 #[test]
 fn test_print_signature_issue(){
     let (pubkey, _) = gen_keypair();
@@ -409,7 +458,7 @@ fn test_print_signature_transfer(){
     println!("pubkey_from = {:5?}\n seckey_from = {:5?}\n", &p, &sk);
     println!("pubkey_to = {:5?}\n", &pub_t);
     assert_eq!(1, 1);
-}
+}*/
 /// Wrapper for the cryptocurrency service API allowing to easily use it
 /// (compared to `TestKitApi` calls).
 struct CryptocurrencyApi {
@@ -508,7 +557,6 @@ impl CryptocurrencyApi {
             .query(&TransactionQuery::new(tx_hash))
             .get("v1/transactions")
             .unwrap();
-        println!("info = {:?}", info);
         if let serde_json::Value::Object(mut info) = info {
             let tx_status = info.remove("status").unwrap();
             assert_eq!(tx_status, *expected_status);
