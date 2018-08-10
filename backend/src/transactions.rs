@@ -17,7 +17,7 @@
 
 extern crate serde_json;
 extern crate serde;
-
+extern crate exonum_time;
 
 use serde::{Deserialize, Serialize, Deserializer, Serializer};
 
@@ -30,7 +30,7 @@ use exonum::messages::RawMessage;
 use exonum::storage::Snapshot;
 //use exonum::messages::Message::from_raw;
 use exonum::explorer::TransactionInfo;
-
+use transactions::exonum_time::schema::TimeSchema;
 
 use CRYPTOCURRENCY_SERVICE_ID;
 use schema::CurrencySchema;
@@ -117,7 +117,6 @@ transactions! {
             pub_key: &PublicKey,
             sender: &PublicKey,
             tx_hash: &Hash,
-            type_transaction: u64,
         }
     }
 }
@@ -243,6 +242,11 @@ impl Transaction for Cancellation {
     
 
     fn execute(&self, fork: &mut Fork) -> ExecutionResult {
+        /*let time = TimeSchema::new(&fork)
+            .time()
+            .get()
+            .expect("Can't get the time");
+        println!("time = {:?}", time);*/
         let mut schema = CurrencySchema :: new(fork);
         let sender_key = self.sender();
         let tx_hash = self.tx_hash();
@@ -251,10 +255,10 @@ impl Transaction for Cancellation {
        //println!("transactions = {:?}", &raw_tx.body());
         //let json = serde_json::to_value(&raw_tx.into_bytes()).unwrap();
         //let info: Transfer = serde_json::from_value(json).unwrap();
-        let transaction: Transfer = Message::from_raw(raw_tx.clone()).unwrap();
+        
         //println!("transactions2 = {:?}", StorageValue :: from_bytes(t));
 
-        
+
         
         /*match raw_tx {
             Some(v) => v,
@@ -267,8 +271,8 @@ impl Transaction for Cancellation {
             Err(_er) => Err(Error :: ReceiverNotFound)?,
         };
         */
-        let id = self.type_transaction();
-        if id == 1 { //Transfer
+        if raw_tx.message_type() == 0 { //Transfer
+            let transaction: Transfer = Message::from_raw(raw_tx.clone()).unwrap();
             let from = transaction.from();
             let to = transaction.to();
             let amount = transaction.amount();
@@ -276,12 +280,13 @@ impl Transaction for Cancellation {
             let wallet_to = schema.wallet(to).ok_or(Error :: ReceiverNotFound)?;
             schema.decrease_wallet_balance(wallet_to, amount, &tx_hash, 0);
             schema.increase_wallet_balance(wallet_from, amount, &tx_hash, 0);
-        }/* else if id == 2 { //issue
+        } else if raw_tx.message_type() == 1 { //issue
+            let transaction: Issue = Message::from_raw(raw_tx.clone()).unwrap();
             let pub_key = transaction.pub_key();
             let amount = transaction.amount();
-            let sender = schema.wallet(pub_key).ok_or(Error :: ReceiverNotFound)?;
+            let sender = schema.wallet(&pub_key).ok_or(Error :: ReceiverNotFound)?;
             schema.decrease_wallet_balance(sender, amount, &tx_hash, 0);
-        }*/
+        }
         Ok(())
 
     }

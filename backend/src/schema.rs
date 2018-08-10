@@ -11,6 +11,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+extern crate chrono;
+use self::chrono::{DateTime, Utc};    
 
 use exonum::{
     crypto::{Hash, PublicKey}, storage::{Fork, ProofListIndex, ProofMapIndex, Snapshot, MapIndex},
@@ -19,6 +21,33 @@ use exonum::{
 
 use wallet::Wallet;
 use INITIAL_BALANCE;
+/*
+encoding_struct! {
+    /// Stores content's hash and some metadata about it.
+    struct Timestamp {
+        /// Hash of the content.
+        tx_hash: &Hash,
+
+        /// Additional metadata.
+        metadata: &str,
+    }
+}
+
+encoding_struct! {
+    /// Timestamp entry.
+    struct TimestampEntry {
+        /// Timestamp data.
+        timestamp: Timestamp,
+
+        /// Hash of transaction.
+        tx_hash: &Hash,
+
+        /// Timestamp time.
+        time: DateTime<Utc>,
+    }
+}*/
+
+
 
 /// Database schema for the cryptocurrency.
 #[derive(Debug)]
