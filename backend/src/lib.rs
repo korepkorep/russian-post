@@ -42,7 +42,7 @@ use exonum::{
 use transactions::WalletTransactions;
 
 /// Unique service ID.
-const CRYPTOCURRENCY_SERVICE_ID: u16 = 128;
+const POST_SERVICE_ID: u16 = 128;
 /// Name of the service.
 pub const SERVICE_NAME: &str = "cryptocurrency";
 /// Initial balance of the wallet.
@@ -58,7 +58,7 @@ impl Service for CurrencyService {
     }
 
     fn service_id(&self) -> u16 {
-        CRYPTOCURRENCY_SERVICE_ID
+        POST_SERVICE_ID
     }
 
     fn state_hash(&self, view: &dyn Snapshot) -> Vec<Hash> {

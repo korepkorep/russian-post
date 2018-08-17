@@ -22,7 +22,7 @@ use exonum::{
 
 use transactions::WalletTransactions;
 use wallet::Wallet;
-use {CurrencySchema, CRYPTOCURRENCY_SERVICE_ID};
+use {CurrencySchema, POST_SERVICE_ID};
 
 /// The structure describes the query parameters for the `get_wallet` endpoint.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
@@ -80,7 +80,7 @@ impl CryptocurrencyApi {
             .unwrap();
 
         let to_table: MapProof<Hash, Hash> =
-            general_schema.get_proof_to_service_table(CRYPTOCURRENCY_SERVICE_ID, 0);
+            general_schema.get_proof_to_service_table(POST_SERVICE_ID, 0);
 
         let to_wallet: MapProof<PublicKey, Wallet> =
             currency_schema.wallets().get_proof(query.pub_key);
