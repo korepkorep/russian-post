@@ -24,6 +24,7 @@ extern crate failure;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
+extern crate chrono;
 
 pub use schema::CurrencySchema;
 

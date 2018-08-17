@@ -20,6 +20,8 @@ extern crate serde;
 
 use serde::{Deserialize, Serialize, Deserializer, Serializer};
 
+use chrono::{DateTime, Utc};
+
 use exonum::blockchain::{ExecutionError, ExecutionResult, Transaction};
 use exonum::crypto::{CryptoHash, PublicKey, Hash};
 use exonum::messages::Message;
@@ -28,11 +30,10 @@ use exonum::storage::StorageValue;
 use exonum::messages::RawMessage;
 use exonum::storage::Snapshot;
 //use exonum::messages::Message::from_raw;
-//use exonum::explorer::TransactionInfo;
-//use exonum_time::schema::TimeSchema;
+use exonum_time::schema::TimeSchema;
 
 use CRYPTOCURRENCY_SERVICE_ID;
-use schema::{CurrencySchema};
+use schema::{CurrencySchema, TimestampEntry};
 
 /// Error codes emitted by wallet transactions during execution.
 #[derive(Debug, Fail)]
@@ -61,6 +62,9 @@ pub enum Error {
     /// Can be emitted by `Transfer`.
     #[fail(display = "Insufficient currency amount")]
     InsufficientCurrencyAmount = 3,
+
+    #[fail(display = "Time is up")]
+    Timeisup = 4,
 }
 
 impl From<Error> for ExecutionError {
@@ -125,17 +129,24 @@ impl Transaction for Issue {
     }
 
     fn execute(&self, fork: &mut Fork) -> ExecutionResult {
+        let time = TimeSchema::new(&fork)
+            .time()
+            .get();
         let mut schema = CurrencySchema :: new(fork);
         let pub_key = self.pub_key();
-        let hash = self.hash();
 
         if let Some(wallet) = schema.wallet(pub_key) {
             let amount = self.amount();
-            schema.increase_wallet_balance(wallet, amount, &hash, 0);
+            schema.increase_wallet_balance(wallet, amount, &self.hash(), 0);
+
+            let entry = TimestampEntry::new(&self.hash(), time.unwrap());
+            schema.add_timestamp(entry);
+
             Ok(())
         } else {
             Err(Error::ReceiverNotFound)?
         }
+
     }
 
 }
@@ -147,13 +158,10 @@ impl Transaction for Transfer {
     }
 
     fn execute(&self, fork: &mut Fork) -> ExecutionResult {
-        //let time_schema =  TimeSchema::new(&fork);
-        /*let time = TimeSchema::new(&fork)
+        let time = TimeSchema::new(&fork)
             .time()
-            .get()
-            .expect("Can't get the time");
-        println!("time_transfer = {:?}", time);*/
-
+            .get();
+        
         let mut schema = CurrencySchema::new(fork);
         let from = self.from();
         let to = self.to();
@@ -171,9 +179,9 @@ impl Transaction for Transfer {
 
         schema.decrease_wallet_balance(sender, amount, &hash, freezed_balance);
         schema.increase_wallet_balance(receiver, amount, &hash, freezed_balance);
-
-       // let entry = TimestampEntry::new(&self.hash(), time.get().unwrap());
-        //schema.add_timestamp(entry);*/
+        
+        let entry = TimestampEntry::new(&self.hash(), time.unwrap());
+        schema.add_timestamp(entry);
         Ok(())
     }
 }
@@ -184,14 +192,23 @@ impl Transaction for CreateWallet {
     }
 
     fn execute(&self, fork: &mut Fork) -> ExecutionResult {
+        let time = TimeSchema::new(&fork)
+            .time()
+            .get();
         let mut schema = CurrencySchema::new(fork);
         let pub_key = self.pub_key();
         let hash = self.hash();
+
+
 
         if schema.wallet(pub_key).is_none(){
             let name = self.name();
             let freezed_balance = 0;
             schema.create_wallet(pub_key, name, &hash, freezed_balance);
+
+            let entry = TimestampEntry::new(&self.hash(), time.unwrap());
+            schema.add_timestamp(entry);
+
             Ok(())
         } else {
             Err(Error::WalletAlreadyExists)?
@@ -206,6 +223,9 @@ impl Transaction for MailPreparation {
     }
 
     fn execute(&self, fork: &mut Fork) -> ExecutionResult {
+        let time = TimeSchema::new(&fork)
+            .time()
+            .get();
         let mut schema = CurrencySchema :: new(fork);
         let pub_key = self.pub_key();
         let amount = self.amount();
@@ -216,6 +236,8 @@ impl Transaction for MailPreparation {
         }
         // freeze_wallet_balance rrealize
         schema.decrease_wallet_balance(sender, amount, &hash, amount);
+        let entry = TimestampEntry::new(&self.hash(), time.unwrap());
+        schema.add_timestamp(entry);
         Ok(())
     }
 }
@@ -229,7 +251,9 @@ impl Transaction for MailAcceptance {
 
 
     fn execute(&self, fork: &mut Fork) -> ExecutionResult {
-
+        let time = TimeSchema::new(&fork)
+            .time()
+            .get();
         let mut schema = CurrencySchema :: new(fork);
         let sender_key = self.sender_key();
         let accept = self.accept();
@@ -243,6 +267,8 @@ impl Transaction for MailAcceptance {
             let freezed_balance = 0;
             schema.increase_wallet_balance(sender, amount, &hash, freezed_balance);
         }
+        let entry = TimestampEntry::new(&self.hash(), time.unwrap());
+        schema.add_timestamp(entry);
         Ok(())
 
     }
@@ -256,57 +282,59 @@ impl Transaction for Cancellation {
     
 
     fn execute(&self, fork: &mut Fork) -> ExecutionResult {
-        /*let mut time_schema =  TimeSchema::new(fork);
-        let time = time_schema
-            .time_mut();
+        let n = 100000;
+        let time = TimeSchema::new(&fork)
+            .time()
             .get()
-            .expect("Can't get the time");
-        println!("time = {:?}", time.get());*/
+            .unwrap();
+        //println!("time_transfer = {:?}", time);
+
         let mut schema = CurrencySchema :: new(fork);
 
         let sender_key = self.sender();
         let tx_hash = self.tx_hash();
         let hash = self.hash();
-        //let tx_time = schema.timestamps().get(&tx_hash).unwrap();
+        let tx_time = schema.timestamps().get(&tx_hash).unwrap();
         //println!("tx_time = {:?}", tx_time);
-        /*
-        if time - tx_time < N {
-            return;
-        }*/
-        let raw_tx = schema.transactions().get(&tx_hash).unwrap();
-        if raw_tx.message_type() == 0 { //Transfer
-            let transaction: Transfer = Message::from_raw(raw_tx.clone()).unwrap();
-            let from = transaction.from();
-            let to = transaction.to();
-            let amount = transaction.amount();
-            let wallet_from = schema.wallet(&from).ok_or(Error :: SenderNotFound)?;
-            let wallet_to = schema.wallet(to).ok_or(Error :: ReceiverNotFound)?;
-            schema.decrease_wallet_balance(wallet_to, amount, &tx_hash, 0);
-            schema.increase_wallet_balance(wallet_from, amount, &tx_hash, 0);
-        } else if raw_tx.message_type() == 1 { //issue
-            let transaction: Issue = Message::from_raw(raw_tx.clone()).unwrap();
-            let pub_key = transaction.pub_key();
-            let amount = transaction.amount();
-            let sender = schema.wallet(&pub_key).ok_or(Error :: ReceiverNotFound)?;
-            schema.decrease_wallet_balance(sender, amount, &tx_hash, 0);
-        } else if raw_tx.message_type() == 3 { //MailPreparation
-            let transaction: MailPreparation = Message::from_raw(raw_tx.clone()).unwrap();
-            let pub_key = transaction.pub_key();
-            let amount = transaction.amount();
-            let sender = schema.wallet(&pub_key).ok_or(Error :: ReceiverNotFound)?;
-            schema.increase_wallet_balance(sender, amount, &hash, 0);
-        } else if raw_tx.message_type() == 4 { //MailAcceptance
-            let transaction: MailAcceptance = Message::from_raw(raw_tx.clone()).unwrap();
-            if transaction.accept() {
-                let pub_key = transaction.sender_key();
+        if time.timestamp() - tx_time < n {
+            let raw_tx = schema.transactions().get(&tx_hash).unwrap();
+            if raw_tx.message_type() == 0 { //Transfer
+                let transaction: Transfer = Message::from_raw(raw_tx.clone()).unwrap();
+                let from = transaction.from();
+                let to = transaction.to();
+                let amount = transaction.amount();
+                let wallet_from = schema.wallet(&from).ok_or(Error :: SenderNotFound)?;
+                let wallet_to = schema.wallet(to).ok_or(Error :: ReceiverNotFound)?;
+                schema.decrease_wallet_balance(wallet_to, amount, &tx_hash, 0);
+                schema.increase_wallet_balance(wallet_from, amount, &tx_hash, 0);
+            } else if raw_tx.message_type() == 1 { //issue
+                let transaction: Issue = Message::from_raw(raw_tx.clone()).unwrap();
+                let pub_key = transaction.pub_key();
+                let amount = transaction.amount();
+                let sender = schema.wallet(&pub_key).ok_or(Error :: ReceiverNotFound)?;
+                schema.decrease_wallet_balance(sender, amount, &tx_hash, 0);
+            } else if raw_tx.message_type() == 3 { //MailPreparation
+                let transaction: MailPreparation = Message::from_raw(raw_tx.clone()).unwrap();
+                let pub_key = transaction.pub_key();
                 let amount = transaction.amount();
                 let sender = schema.wallet(&pub_key).ok_or(Error :: ReceiverNotFound)?;
                 schema.increase_wallet_balance(sender, amount, &hash, 0);
+            } else if raw_tx.message_type() == 4 { //MailAcceptance
+                let transaction: MailAcceptance = Message::from_raw(raw_tx.clone()).unwrap();
+                if transaction.accept() {
+                    let pub_key = transaction.sender_key();
+                    let amount = transaction.amount();
+                    let sender = schema.wallet(&pub_key).ok_or(Error :: ReceiverNotFound)?;
+                    schema.increase_wallet_balance(sender, amount, &hash, 0);
+                }
             }
+        } else {
+            Err(Error::Timeisup)?;
         }
-        /*
+        
+        
         let entry = TimestampEntry::new(&self.hash(), time);
-        schema.add_timestamp(entry);*/
+        schema.add_timestamp(entry);
         Ok(())
 
     }

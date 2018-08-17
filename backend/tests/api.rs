@@ -21,20 +21,25 @@
 extern crate exonum;
 extern crate exonum_cryptocurrency_advanced as cryptocurrency;
 extern crate exonum_testkit;
+extern crate exonum_time;
 #[macro_use]
 extern crate serde_json;
 
 use exonum::{
     api::node::public::explorer::TransactionQuery,
-    crypto::{self, CryptoHash, Hash, PublicKey, SecretKey, sign, gen_keypair},
+    crypto::{self, CryptoHash, Hash, PublicKey, SecretKey, sign, gen_keypair}, 
+    helpers::Height,
 };
 use exonum_testkit::{ApiKind, TestKit, TestKitApi, TestKitBuilder};
-
+use exonum_time::{time_provider::MockTimeProvider, TimeService};
 // Import data types used in tests from the crate where the service is defined.
 use cryptocurrency::{
-    api::{WalletInfo, WalletQuery}, transactions::{CreateWallet, Transfer, Issue, MailAcceptance, MailPreparation, Cancellation}, wallet::Wallet,
+    api::{WalletInfo, WalletQuery}, transactions::{CreateWallet, Transfer, Issue, MailAcceptance, MailPreparation, Cancellation}, 
+    wallet::Wallet,
     CurrencyService,
 };
+
+use std::time::SystemTime;
 
 // Imports shared test constants.
 use constants::{ALICE_NAME, BOB_NAME, JOHN_NAME};
@@ -45,7 +50,7 @@ mod constants;
 /// Check that the wallet creation transaction works when invoked via API.
 #[test]
 fn test_create_wallet() {
-    let (mut testkit, api) = create_testkit();
+    let (mut testkit, api, _) = create_testkit();
     // Create and send a transaction via API
     let (tx, _) = api.create_wallet(ALICE_NAME);
     testkit.create_block();
@@ -59,7 +64,7 @@ fn test_create_wallet() {
 }
 #[test]
 fn test_issue() {
-    let (mut testkit, api) = create_testkit();
+    let (mut testkit, api, _) = create_testkit();
     let (tx_alice, key_alice) = api.create_wallet(ALICE_NAME);
     let (tx_bob, key_bob) = api.create_wallet(BOB_NAME);
     testkit.create_block();
@@ -89,7 +94,7 @@ fn test_issue() {
 }
 #[test]
 fn test_acceptance() {
-    let (mut testkit, api) = create_testkit();
+    let (mut testkit, api, _) = create_testkit();
     let (tx_alice, key_alice) = api.create_wallet(ALICE_NAME);
     let (tx_bob, key_bob) = api.create_wallet(BOB_NAME);
     testkit.create_block();
@@ -180,7 +185,7 @@ fn test_acceptance() {
 
 #[test]
 fn test_preparation() {
-    let (mut testkit, api) = create_testkit();
+    let (mut testkit, api, _) = create_testkit();
     let (tx_alice, key_alice) = api.create_wallet(ALICE_NAME);
     let (tx_bob, _) = api.create_wallet(BOB_NAME);
     testkit.create_block();
@@ -218,7 +223,7 @@ fn test_preparation() {
 #[test]
 fn test_transfer() {
     // Create 2 wallets.
-    let (mut testkit, api) = create_testkit();
+    let (mut testkit, api, _) = create_testkit();
     let (tx_alice, key_alice) = api.create_wallet(ALICE_NAME);
     let (tx_bob, _) = api.create_wallet(BOB_NAME);
     testkit.create_block();
@@ -251,11 +256,10 @@ fn test_transfer() {
     assert_eq!(wallet.balance(), 110);
 }
 
-
 /// Check that a transfer from a non-existing wallet fails as expected.
 #[test]
 fn test_transfer_from_nonexisting_wallet() {
-    let (mut testkit, api) = create_testkit();
+    let (mut testkit, api, _) = create_testkit();
 
     let (tx_alice, key_alice) = api.create_wallet(ALICE_NAME);
     let (tx_bob, _) = api.create_wallet(BOB_NAME);
@@ -289,7 +293,7 @@ fn test_transfer_from_nonexisting_wallet() {
 /// Check that a transfer to a non-existing wallet fails as expected.
 #[test]
 fn test_transfer_to_nonexisting_wallet() {
-    let (mut testkit, api) = create_testkit();
+    let (mut testkit, api, _) = create_testkit();
 
     let (tx_alice, key_alice) = api.create_wallet(ALICE_NAME);
     let (tx_bob, _) = api.create_wallet(BOB_NAME);
@@ -323,7 +327,7 @@ fn test_transfer_to_nonexisting_wallet() {
 /// Check that an overcharge does not lead to changes in sender's and receiver's balances.
 #[test]
 fn test_transfer_overcharge() {
-    let (mut testkit, api) = create_testkit();
+    let (mut testkit, api, _) = create_testkit();
 
     let (tx_alice, key_alice) = api.create_wallet(ALICE_NAME);
     let (tx_bob, _) = api.create_wallet(BOB_NAME);
@@ -352,7 +356,7 @@ fn test_transfer_overcharge() {
 
 #[test]
 fn test_unknown_wallet_request() {
-    let (_testkit, api) = create_testkit();
+    let (_testkit, api, _) = create_testkit();
 
     // Transaction is sent by API, but isn't committed.
     let (tx, _) = api.create_wallet(ALICE_NAME);
@@ -363,7 +367,7 @@ fn test_unknown_wallet_request() {
 
 #[test]
 fn test_cancellation_transfer() {
-    let (mut testkit, api) = create_testkit();
+    let (mut testkit, api, _) = create_testkit();
     let (tx_alice, _) = api.create_wallet(ALICE_NAME);
     let (tx_bob, key_bob) = api.create_wallet(BOB_NAME);
     let (tx_john, key_john) = api.create_wallet(JOHN_NAME);
@@ -418,7 +422,7 @@ fn test_cancellation_transfer() {
 
 #[test]
 fn test_cancellation_issue() {
-    let (mut testkit, api) = create_testkit();
+    let (mut testkit, api, _) = create_testkit();
     let (tx_alice, _) = api.create_wallet(ALICE_NAME);
     let (tx_bob, key_bob) = api.create_wallet(BOB_NAME);
     testkit.create_block();
@@ -467,7 +471,7 @@ fn test_cancellation_issue() {
 
 #[test]
 fn test_cancellation_mailpreparation() {
-    let (mut testkit, api) = create_testkit();
+    let (mut testkit, api, _) = create_testkit();
     let (tx_alice, key_alice) = api.create_wallet(ALICE_NAME);
     let (tx_bob, key_bob) = api.create_wallet(BOB_NAME);
     testkit.create_block();
@@ -512,7 +516,7 @@ fn test_cancellation_mailpreparation() {
 
 #[test]
 fn test_cancellation_mailacceptance() {
-    let (mut testkit, api) = create_testkit();
+    let (mut testkit, api, _) = create_testkit();
     let (tx_alice, key_alice) = api.create_wallet(ALICE_NAME);
     let (tx_bob, key_bob) = api.create_wallet(BOB_NAME);
     testkit.create_block();
@@ -820,12 +824,15 @@ impl CryptocurrencyApi {
 }
 
 /// Creates a testkit together with the API wrapper defined above.
-fn create_testkit() -> (TestKit, CryptocurrencyApi) {
-    let testkit = TestKitBuilder::validator()
+fn create_testkit() -> (TestKit, CryptocurrencyApi, MockTimeProvider) {
+	let mock_provider = MockTimeProvider::new(SystemTime::now().into());
+    let mut testkit = TestKitBuilder::validator()
         .with_service(CurrencyService)
+        .with_service(TimeService::with_provider(mock_provider.clone()))
         .create();
     let api = CryptocurrencyApi {
         inner: testkit.api(),
     };
-    (testkit, api)
+    testkit.create_blocks_until(Height(2)); 
+    (testkit, api, mock_provider)
 }

@@ -19,10 +19,12 @@ use exonum::{
     messages::{RawMessage},
 };
 
+use chrono::{DateTime, Utc};
+
 use wallet::Wallet;
 use INITIAL_BALANCE;
 
-/*
+
 encoding_struct! {
     /// Timestamp entry.
     struct TimestampEntry {
@@ -34,7 +36,7 @@ encoding_struct! {
         time: DateTime<Utc>,
     }
 }
-*/
+
 
 
 /// Database schema for the cryptocurrency.
@@ -83,7 +85,7 @@ where
         MapIndex::new("core.transactions", &self.view)
     }
 
-  /*  /// Returns the `ProofMapIndex` of timestamps.
+    /// Returns the `ProofMapIndex` of timestamps.
     pub fn timestamps(&self) -> ProofMapIndex<&T, Hash, i64> {
         ProofMapIndex::new("cryptocurrency.timestamps", &self.view)
     }
@@ -91,7 +93,7 @@ where
     /// Returns the state hash of the timestamping service.
     pub fn state_hash_timestamps(&self) -> Vec<Hash> {
         vec![self.timestamps().merkle_root()]
-    }*/
+    }
 }
 
 /// Implementation of mutable methods.
@@ -155,7 +157,7 @@ impl<'a> CurrencySchema<&'a mut Fork> {
         MapIndex::new("core.transactions", &mut self.view)
     }
 
-    /*/// Returns the mutable `ProofMapIndex` of timestamps.
+    /// Returns the mutable `ProofMapIndex` of timestamps.
     pub fn timestamps_mut(&mut self) -> ProofMapIndex<&mut Fork, Hash, i64> {
         ProofMapIndex::new("cryptocurrency.timestamps", &mut self.view)
     }
@@ -172,5 +174,5 @@ impl<'a> CurrencySchema<&'a mut Fork> {
 
         // Add timestamp
         self.timestamps_mut().put(tx_hash, time.timestamp());
-    }*/
+    }
 }
