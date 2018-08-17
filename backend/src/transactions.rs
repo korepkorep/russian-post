@@ -266,7 +266,7 @@ impl Transaction for Cancellation {
 
         let sender_key = self.sender();
         let tx_hash = self.tx_hash();
-
+        let hash = self.hash();
         //let tx_time = schema.timestamps().get(&tx_hash).unwrap();
         //println!("tx_time = {:?}", tx_time);
         /*
@@ -289,6 +289,20 @@ impl Transaction for Cancellation {
             let amount = transaction.amount();
             let sender = schema.wallet(&pub_key).ok_or(Error :: ReceiverNotFound)?;
             schema.decrease_wallet_balance(sender, amount, &tx_hash, 0);
+        } else if raw_tx.message_type() == 3 { //MailPreparation
+            let transaction: MailPreparation = Message::from_raw(raw_tx.clone()).unwrap();
+            let pub_key = transaction.pub_key();
+            let amount = transaction.amount();
+            let sender = schema.wallet(&pub_key).ok_or(Error :: ReceiverNotFound)?;
+            schema.increase_wallet_balance(sender, amount, &hash, 0);
+        } else if raw_tx.message_type() == 4 { //MailAcceptance
+            let transaction: MailAcceptance = Message::from_raw(raw_tx.clone()).unwrap();
+            if transaction.accept() {
+                let pub_key = transaction.sender_key();
+                let amount = transaction.amount();
+                let sender = schema.wallet(&pub_key).ok_or(Error :: ReceiverNotFound)?;
+                schema.increase_wallet_balance(sender, amount, &hash, 0);
+            }
         }
         /*
         let entry = TimestampEntry::new(&self.hash(), time);

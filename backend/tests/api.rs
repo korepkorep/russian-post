@@ -464,6 +464,116 @@ fn test_cancellation_issue() {
     let wallet = api.get_wallet(*tx_bob.pub_key()).unwrap();
     assert_eq!(wallet.balance(), 100);
 }
+
+#[test]
+fn test_cancellation_mailpreparation() {
+    let (mut testkit, api) = create_testkit();
+    let (tx_alice, key_alice) = api.create_wallet(ALICE_NAME);
+    let (tx_bob, key_bob) = api.create_wallet(BOB_NAME);
+    testkit.create_block();
+    api.assert_tx_status(tx_alice.hash(), &json!({ "type": "success" }));
+    api.assert_tx_status(tx_bob.hash(), &json!({ "type": "success" }));
+ 
+
+
+    let wallet = api.get_wallet(*tx_alice.pub_key()).unwrap();
+    assert_eq!(wallet.balance(), 100);
+
+    let meta = &String::new();
+    let tx_preparation = MailPreparation :: new(
+        meta,
+        tx_alice.pub_key(),
+        11,
+        0,
+        &key_alice,
+    );
+    api.preparation(&tx_preparation);
+    testkit.create_block();
+    api.assert_tx_status(tx_preparation.hash(), &json!({ "type": "success" }));
+    let tx_hash = &tx_preparation.hash();
+
+    let wallet = api.get_wallet(*tx_alice.pub_key()).unwrap();
+    assert_eq!(wallet.balance(), 89);
+
+    let tx = Cancellation :: new(
+        tx_bob.pub_key(),
+        tx_alice.pub_key(),
+        &tx_hash,
+        &key_bob,
+    );
+    api.cancellation(&tx);
+    testkit.create_block();
+    api.assert_tx_status(tx.hash(), &json!({ "type": "success" }));
+
+
+    let wallet = api.get_wallet(*tx_alice.pub_key()).unwrap();
+    assert_eq!(wallet.balance(), 100);
+}
+
+#[test]
+fn test_cancellation_mailacceptance() {
+    let (mut testkit, api) = create_testkit();
+    let (tx_alice, key_alice) = api.create_wallet(ALICE_NAME);
+    let (tx_bob, key_bob) = api.create_wallet(BOB_NAME);
+    testkit.create_block();
+    api.assert_tx_status(tx_alice.hash(), &json!({ "type": "success" }));
+    api.assert_tx_status(tx_bob.hash(), &json!({ "type": "success" }));
+ 
+
+
+    let wallet = api.get_wallet(*tx_alice.pub_key()).unwrap();
+    assert_eq!(wallet.balance(), 100);
+
+
+    let meta = &String::new();
+    let tx_preparation = MailPreparation :: new(
+        meta,
+        tx_alice.pub_key(),
+        11,
+        0,
+        &key_alice,
+    );
+    api.preparation(&tx_preparation);
+    testkit.create_block();
+    api.assert_tx_status(tx_preparation.hash(), &json!({ "type": "success" }));
+    
+    let wallet = api.get_wallet(*tx_alice.pub_key()).unwrap();
+    assert_eq!(wallet.balance(), 89);
+
+
+    let tx_accept = MailAcceptance :: new(
+        tx_bob.pub_key(),
+        tx_alice.pub_key(),
+        11,
+        true,
+        1,
+        &key_bob,
+    );
+
+    api.acceptance(&tx_accept);
+    testkit.create_block();
+    api.assert_tx_status(tx_accept.hash(), &json!({ "type": "success" }));
+
+    let tx_hash = &tx_accept.hash();
+
+    let wallet = api.get_wallet(*tx_alice.pub_key()).unwrap();
+    assert_eq!(wallet.balance(), 89);
+
+    let tx = Cancellation :: new(
+        tx_bob.pub_key(),
+        tx_alice.pub_key(),
+        &tx_hash,
+        &key_bob,
+    );
+    api.cancellation(&tx);
+    testkit.create_block();
+    api.assert_tx_status(tx.hash(), &json!({ "type": "success" }));
+
+
+    let wallet = api.get_wallet(*tx_alice.pub_key()).unwrap();
+    assert_eq!(wallet.balance(), 100);
+}
+
 /*
 #[test]
 fn test_print_signature_issue(){
