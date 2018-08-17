@@ -48,7 +48,7 @@
 {
  "body": {
     "pub_key": "604009ac24c32cb8659a46355b2e81ab606c494af81c42f241ff4aa0cb2bbc6f",
-    "Sasha",
+    "name": "Sasha",
   },
   "protocol_version": 0,
   "service_id": 128,
