@@ -18,6 +18,7 @@
 
 #[macro_use]
 extern crate exonum;
+extern crate exonum_time;
 #[macro_use]
 extern crate failure;
 extern crate serde;

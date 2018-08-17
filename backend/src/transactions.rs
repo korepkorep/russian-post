@@ -1,3 +1,4 @@
+
 // Copyright 2018 The Exonum Team
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,17 +13,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Workaround for `failure` see https://github.com/rust-lang-nursery/failure/issues/223 and
-// ECR-1771 for the details.
-#![allow(bare_trait_objects)]
+#![ allow( bare_trait_objects ) ]
 
-use exonum::{
-    blockchain::{ExecutionError, ExecutionResult, Transaction}, crypto::{CryptoHash, PublicKey},
-    messages::Message, storage::Fork,
-};
+extern crate serde_json;
+extern crate serde;
 
-use schema::CurrencySchema;
+use serde::{Deserialize, Serialize, Deserializer, Serializer};
+
+use exonum::blockchain::{ExecutionError, ExecutionResult, Transaction};
+use exonum::crypto::{CryptoHash, PublicKey, Hash};
+use exonum::messages::Message;
+use exonum::storage::Fork;
+use exonum::storage::StorageValue;
+use exonum::messages::RawMessage;
+use exonum::storage::Snapshot;
+//use exonum::messages::Message::from_raw;
+//use exonum::explorer::TransactionInfo;
+//use exonum_time::schema::TimeSchema;
+
 use CRYPTOCURRENCY_SERVICE_ID;
+use schema::{CurrencySchema};
 
 /// Error codes emitted by wallet transactions during execution.
 #[derive(Debug, Fail)]
@@ -75,6 +85,7 @@ transactions! {
         /// Issue `amount` of the currency to the `wallet`.
         struct Issue {
             pub_key:  &PublicKey,
+            issuer_key: &PublicKey,
             amount:  u64,
             seed:    u64,
         }
@@ -84,8 +95,51 @@ transactions! {
             pub_key: &PublicKey,
             name:    &str,
         }
+
+        struct MailPreparation {
+            meta: &str,
+            pub_key: &PublicKey,
+            amount: u64,
+            seed: u64,
+        }
+
+        struct MailAcceptance {
+            pub_key: &PublicKey,
+            sender_key: &PublicKey,
+            amount: u64,
+            accept:  bool,
+            seed: u64,
+        }
+        
+        struct Cancellation {
+            pub_key: &PublicKey,
+            sender: &PublicKey,
+            tx_hash: &Hash,
+        }
     }
 }
+
+impl Transaction for Issue {
+    fn verify(&self) -> bool {
+        self.verify_signature(self.issuer_key())
+    }
+
+    fn execute(&self, fork: &mut Fork) -> ExecutionResult {
+        let mut schema = CurrencySchema :: new(fork);
+        let pub_key = self.pub_key();
+        let hash = self.hash();
+
+        if let Some(wallet) = schema.wallet(pub_key) {
+            let amount = self.amount();
+            schema.increase_wallet_balance(wallet, amount, &hash, 0);
+            Ok(())
+        } else {
+            Err(Error::ReceiverNotFound)?
+        }
+    }
+
+}
+
 
 impl Transaction for Transfer {
     fn verify(&self) -> bool {
@@ -93,45 +147,34 @@ impl Transaction for Transfer {
     }
 
     fn execute(&self, fork: &mut Fork) -> ExecutionResult {
-        let mut schema = CurrencySchema::new(fork);
+        //let time_schema =  TimeSchema::new(&fork);
+        /*let time = TimeSchema::new(&fork)
+            .time()
+            .get()
+            .expect("Can't get the time");
+        println!("time_transfer = {:?}", time);*/
 
+        let mut schema = CurrencySchema::new(fork);
         let from = self.from();
         let to = self.to();
         let hash = self.hash();
         let amount = self.amount();
+        let freezed_balance = 0;
+        let sender = schema.wallet(from).ok_or(Error :: SenderNotFound)?;
 
-        let sender = schema.wallet(from).ok_or(Error::SenderNotFound)?;
-
-        let receiver = schema.wallet(to).ok_or(Error::ReceiverNotFound)?;
+        let receiver = schema.wallet(to).ok_or(Error :: ReceiverNotFound)?;
 
         if sender.balance() < amount {
-            Err(Error::InsufficientCurrencyAmount)?
+            Err(Error::InsufficientCurrencyAmount)?;
+
         }
 
-        schema.decrease_wallet_balance(sender, amount, &hash);
-        schema.increase_wallet_balance(receiver, amount, &hash);
+        schema.decrease_wallet_balance(sender, amount, &hash, freezed_balance);
+        schema.increase_wallet_balance(receiver, amount, &hash, freezed_balance);
 
+       // let entry = TimestampEntry::new(&self.hash(), time.get().unwrap());
+        //schema.add_timestamp(entry);*/
         Ok(())
-    }
-}
-
-impl Transaction for Issue {
-    fn verify(&self) -> bool {
-        self.verify_signature(self.pub_key())
-    }
-
-    fn execute(&self, fork: &mut Fork) -> ExecutionResult {
-        let mut schema = CurrencySchema::new(fork);
-        let pub_key = self.pub_key();
-        let hash = self.hash();
-
-        if let Some(wallet) = schema.wallet(pub_key) {
-            let amount = self.amount();
-            schema.increase_wallet_balance(wallet, amount, &hash);
-            Ok(())
-        } else {
-            Err(Error::ReceiverNotFound)?
-        }
     }
 }
 
@@ -145,12 +188,113 @@ impl Transaction for CreateWallet {
         let pub_key = self.pub_key();
         let hash = self.hash();
 
-        if schema.wallet(pub_key).is_none() {
+        if schema.wallet(pub_key).is_none(){
             let name = self.name();
-            schema.create_wallet(pub_key, name, &hash);
+            let freezed_balance = 0;
+            schema.create_wallet(pub_key, name, &hash, freezed_balance);
             Ok(())
         } else {
             Err(Error::WalletAlreadyExists)?
-        }
+        } 
+    }    
+}
+
+
+impl Transaction for MailPreparation {
+    fn verify(&self) -> bool {
+        self.verify_signature(self.pub_key())
     }
+
+    fn execute(&self, fork: &mut Fork) -> ExecutionResult {
+        let mut schema = CurrencySchema :: new(fork);
+        let pub_key = self.pub_key();
+        let amount = self.amount();
+        let hash = self.hash();
+        let sender = schema.wallet(pub_key).ok_or(Error :: SenderNotFound)?;
+        if sender.balance() < amount {
+            Err(Error::InsufficientCurrencyAmount)?;
+        }
+        // freeze_wallet_balance rrealize
+        schema.decrease_wallet_balance(sender, amount, &hash, amount);
+        Ok(())
+    }
+}
+
+
+impl Transaction for MailAcceptance {
+    fn verify(&self) -> bool {
+        self.verify_signature(self.pub_key())
+    }
+
+
+
+    fn execute(&self, fork: &mut Fork) -> ExecutionResult {
+
+        let mut schema = CurrencySchema :: new(fork);
+        let sender_key = self.sender_key();
+        let accept = self.accept();
+        let hash = self.hash();
+        let sender = schema.wallet(sender_key).ok_or(Error :: SenderNotFound)?;
+        if accept {
+            let freezed_balance = 0;
+            schema.decrease_wallet_balance(sender, freezed_balance, &hash, freezed_balance);
+        } else {
+            let amount = sender.freezed_balance();
+            let freezed_balance = 0;
+            schema.increase_wallet_balance(sender, amount, &hash, freezed_balance);
+        }
+        Ok(())
+
+    }
+}
+
+impl Transaction for Cancellation {
+    fn verify(&self) -> bool {
+        self.verify_signature(self.pub_key())
+    }
+
+    
+
+    fn execute(&self, fork: &mut Fork) -> ExecutionResult {
+        /*let mut time_schema =  TimeSchema::new(fork);
+        let time = time_schema
+            .time_mut();
+            .get()
+            .expect("Can't get the time");
+        println!("time = {:?}", time.get());*/
+        let mut schema = CurrencySchema :: new(fork);
+
+        let sender_key = self.sender();
+        let tx_hash = self.tx_hash();
+
+        //let tx_time = schema.timestamps().get(&tx_hash).unwrap();
+        //println!("tx_time = {:?}", tx_time);
+        /*
+        if time - tx_time < N {
+            return;
+        }*/
+        let raw_tx = schema.transactions().get(&tx_hash).unwrap();
+        if raw_tx.message_type() == 0 { //Transfer
+            let transaction: Transfer = Message::from_raw(raw_tx.clone()).unwrap();
+            let from = transaction.from();
+            let to = transaction.to();
+            let amount = transaction.amount();
+            let wallet_from = schema.wallet(&from).ok_or(Error :: SenderNotFound)?;
+            let wallet_to = schema.wallet(to).ok_or(Error :: ReceiverNotFound)?;
+            schema.decrease_wallet_balance(wallet_to, amount, &tx_hash, 0);
+            schema.increase_wallet_balance(wallet_from, amount, &tx_hash, 0);
+        } else if raw_tx.message_type() == 1 { //issue
+            let transaction: Issue = Message::from_raw(raw_tx.clone()).unwrap();
+            let pub_key = transaction.pub_key();
+            let amount = transaction.amount();
+            let sender = schema.wallet(&pub_key).ok_or(Error :: ReceiverNotFound)?;
+            schema.decrease_wallet_balance(sender, amount, &tx_hash, 0);
+        }
+        /*
+        let entry = TimestampEntry::new(&self.hash(), time);
+        schema.add_timestamp(entry);*/
+        Ok(())
+
+    }
+
 }

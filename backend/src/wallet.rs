@@ -1,3 +1,4 @@
+
 // Copyright 2018 The Exonum Team
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,18 +25,20 @@ encoding_struct! {
         balance:            u64,
         history_len:        u64,
         history_hash:       &Hash,
+        freezed_balance:    u64,
     }
 }
 
 impl Wallet {
     /// Returns a copy of this wallet with updated balance.
-    pub fn set_balance(self, balance: u64, history_hash: &Hash) -> Self {
+    pub fn set_balance(self, balance: u64, history_hash: &Hash, freezed_balance: u64) -> Self {
         Self::new(
             self.pub_key(),
             self.name(),
             balance,
             self.history_len() + 1,
             history_hash,
+            freezed_balance,
         )
     }
 }

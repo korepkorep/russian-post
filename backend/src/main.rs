@@ -20,6 +20,7 @@ use exonum::helpers::{self, fabric::NodeBuilder};
 use exonum_configuration as configuration;
 use exonum_cryptocurrency_advanced as cryptocurrency;
 
+
 fn main() {
     exonum::crypto::init();
     helpers::init_logger().unwrap();
