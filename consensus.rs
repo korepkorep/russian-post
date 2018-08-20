@@ -222,6 +222,13 @@ transactions! {
         seed:    u64,
             //priority: f64, 
         }
+    struct MailPreparation {
+        meta: &str,
+        pub_key: &PublicKey,
+        amount: u64,
+        seed: u64,
+         //   priority: f64,
+        }
     }
 }
 
@@ -240,6 +247,21 @@ impl Transaction for Transfer {
         Ok(())
     }
 
+}
+
+impl Transaction for MailPreparation {
+    fn verify(&self) -> bool {
+        self.verify_signature(self.pub_key())
+    }
+    
+    fn execute(&self, fork: &mut Fork) -> ExecutionResult {
+        let mut schema = Schema :: new(fork);
+        let pub_key = self.pub_key();
+        let amount = self.amount();
+        let hash = self.hash();
+        // freeze_wallet_balance rrealize
+        Ok(())
+    }
 }
 
 // TODO Reduce view invocations. (ECR-171)
@@ -1053,7 +1075,22 @@ impl NodeHandler {
                     self.user_priority.insert(*from, priority); 
                 }
             }
+            if raw_tx.message_type() == 3 {
+                println!("Issue");
+                let tx: MailPreparation = Message :: from_raw(raw_tx.clone()).unwrap();
+                let pub_key = tx.pub_key();
+                let priority = 10;
+                println!("{:?}",tx);
+                if self.user_priority.contains_key(pub_key) {
+                    self.user_priority.remove(pub_key);
+                    self.user_priority.insert(*pub_key, priority);
+                } else {
+                    self.user_priority.insert(*pub_key, priority); 
+                }
+
+            }
         }
+        println!("{:?}",self.user_priority);
         self.blockchain.create_patch(proposer_id, height, tx_hashes)
     }
 
