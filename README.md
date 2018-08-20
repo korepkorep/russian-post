@@ -72,7 +72,7 @@ assert_matches = "1.2.0"
 enable_blockchain_explorer = true
 ```
 
-##Wallet
+## Wallet
 
 Firstly, to describe user interaction we need to add wallet object, because the main feature is exchange of tokens
 
@@ -91,8 +91,8 @@ encoding_struct! {
     }
 }
 ``` 
-```sh pub_key``` is a field of the wallet holder, ```sh  name ``` is a field of the wallet name,
-```sh balance``` is a field of the wallet balance, ```sh freezed_balance``` is a field of the wallet that cannot be spent (Used in MailPreparation Transaction). Two other fields show the information about history of the wallet.
+``` pub_key``` is a field of the wallet holder, ```  name ``` is a field of the wallet name,
+``` balance``` is a field of the wallet balance, ``` freezed_balance``` is a field of the wallet that cannot be spent (Used in MailPreparation Transaction). Two other fields show the information about history of the wallet.
 
 ```sh
 impl Wallet {
