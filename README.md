@@ -71,6 +71,7 @@ assert_matches = "1.2.0"
 [api]
 enable_blockchain_explorer = true
 ```
+
 ##Wallet
 
 Firstly, to describe user interaction we need to add wallet object, because the main feature is exchange of tokens
