@@ -11,7 +11,7 @@ It implements most basic operations:
 - Create a new user
 - Add funds to the user's balance
 - Transfer funds between users
-- Issue funds to the user
+- Issue user's funds
 - Prepare some funds for stamping
 - Accept preparation transaction
 
@@ -106,7 +106,61 @@ Run nodes:
 ```
 
 <!-- markdownlint-enable MD013 -->
+## Configuration
+Let's edit Cargo.toml in exonum configuration.
+```sh
+[workspace]
+members = [
+    "exonum",
+    "testkit",
+    "testkit/server",
+    "services/configuration",
+    "services/time",
+    "examples/cryptocurrency",
+    "examples/cryptocurrency-advanced/backend",
+    "examples/timestamping/backend",
+    "examples/russian-post/backend",
+]
+exclude = [ "exonum/fuzz" ]
+```
+Then set configuration in russian-post folder in Cargo.toml file.
 
+```sh
+[package]
+name = "exonum-russian-post"
+version = "0.9.0"
+authors = ["The Exonum Team <exonum@bitfury.com>"]
+homepage = "https://exonum.com/"
+repository = "https://github.com/exonum/exonum"
+readme = "README.md"
+license = "Apache-2.0"
+keywords = ["exonum", "blockchain", "example"]
+categories = ["rust-patterns", "development-tools::testing"]
+description = "Exonum blockchain example implementing a post office."
+
+[badges]
+travis-ci = { repository = "exonum/exonum" }
+circle-ci = { repository = "exonum/exonum" }
+
+[dependencies]
+exonum = { version = "0.9.0", path = "../../../exonum" }
+exonum-configuration = { version = "0.9.0", path = "../../../services/configuration" }
+exonum-time = { version = "0.9.0", path = "../../../services/time" }
+serde = "1.0.0"
+serde_derive = "1.0.0"
+failure = "=0.1.2"
+serde_json = "1.0.24"
+chrono = "0.4.5"
+
+[dev-dependencies]
+exonum-testkit = { version = "0.9.0", path = "../../../testkit" }
+serde_json = "1.0.24"
+pretty_assertions = "=0.5.1"
+assert_matches = "1.2.0"
+
+[api]
+enable_blockchain_explorer = true
+```
 ## License
 
 Cryptocurrency demo is licensed under the Apache License (Version 2.0).
