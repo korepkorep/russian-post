@@ -111,6 +111,95 @@ impl Wallet {
 ```
 Here we can set balance of the wallet.
 
+##Transactions
+
+Now we have wallet. Let's define transactions, they will describe the interaction between users of the blockchain.
+First, we are using some imports, that will help us to use necessary files(DataBase, Macroses, DataTypes and etc.).
+```sh
+extern crate serde_json;
+extern crate serde;
+
+use serde::{Deserialize, Serialize, Deserializer, Serializer};
+
+use chrono::{DateTime, Utc};
+
+use exonum::blockchain::{ExecutionError, ExecutionResult, Transaction};
+use exonum::crypto::{CryptoHash, PublicKey, Hash};
+use exonum::messages::Message;
+use exonum::storage::Fork;
+use exonum::storage::StorageValue;
+use exonum::messages::RawMessage;
+use exonum::storage::Snapshot;
+use exonum_time::schema::TimeSchema;
+
+use POST_SERVICE_ID;
+use schema::{CurrencySchema, TimestampEntry};
+```
+Second, defining transaction structs.
+
+```sh
+transactions! {
+    pub WalletTransactions {
+        const SERVICE_ID = POST_SERVICE_ID;
+
+        struct Transfer {
+            from:    &PublicKey,
+            to:      &PublicKey,
+            amount:  u64,
+            seed:    u64,
+        }
+
+        struct Issue {
+            pub_key:  &PublicKey,
+            issuer_key: &PublicKey,
+            amount:  u64,
+            seed:    u64,
+        }
+
+        struct CreateWallet {
+            pub_key: &PublicKey,
+            name:    &str,
+        }
+
+        struct MailPreparation {
+            meta: &str,
+            pub_key: &PublicKey,
+            amount: u64,
+            seed: u64,
+        }
+
+        struct MailAcceptance {
+            pub_key: &PublicKey,
+            sender_key: &PublicKey,
+            amount: u64,
+            accept:  bool,
+            seed: u64,
+        }
+        
+        struct Cancellation {
+            pub_key: &PublicKey,
+            sender: &PublicKey,
+            tx_hash: &Hash,
+        }
+    }
+}
+```
+
+#Transfer
+
+Transfer transaction has 4 fields. The first one is ```from```. This field contains sender's public key.
+The second one is  ```to```. This field contains recipient's public key.
+The third one is ```amount```. It contains information "How many funds we are going to transfer".
+The last one is ```seed```. This field is special, because we need it, to avoid repetition of the equal transactions.
+
+#Issue
+
+Issue transaction has 4 fields. The first one is ```pub_key```. This field contains public key of the wallet holder, whose wallet balance
+should be increased.
+The second one is  ```issuer_key```. This field contains public key of the issuer.
+The third one is ```amount```. It contains information "How many funds we are going to issue".
+The last one is ```seed```. This field is special, because we need it, to avoid repetition of the equal transactions.
+
 ## Install and run
 
 ### Using docker
