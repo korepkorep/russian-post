@@ -185,14 +185,14 @@ transactions! {
 }
 ```
 
-# Transfer
+#### Transfer
 
 Transfer transaction has 4 fields. The first one is ```from```. This field contains sender's public key.
 The second one is  ```to```. This field contains recipient's public key.
 The third one is ```amount```. It contains information "How many funds we are going to transfer".
 The last one is ```seed```. This field is special, because we need it, to avoid repetition of the equal transactions.
 
-# Issue
+#### Issue
 
 Issue transaction has 4 fields. The first one is ```pub_key```. This field contains public key of the wallet holder, whose wallet balance
 should be increased.
