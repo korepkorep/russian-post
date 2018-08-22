@@ -200,6 +200,25 @@ The second one is  ```issuer_key```. This field contains public key of the issue
 The third one is ```amount```. It contains information "How many funds we are going to issue".
 The last one is ```seed```. This field is special, because we need it, to avoid repetition of the equal transactions.
 
+#### Create Wallet
+
+Create Wallet transaction has 2 fields. The first one is ```pub_key```. This field contains public key of the wallet creator.
+The second one is ```name```. This field contains the name of the wallet.
+
+#### Mail Preparation
+
+This kind of transactions describes proccess of the token stamping. If entity wants to stamp some tokens, he need this transaction. Mail Preparation transaction has 4 fields. The first one is ```meta```. It contains information about stamping. F.e. "I would like to stamp 3000 tokens". The second one is ```pub_key```. It contains information about entity public key. The third one is ```amount```. This field is about the number of tokens that should be stamped. The last field is seed field.
+
+#### Mail Acceptance
+
+Only inspectors can accept or reject Mail Preparation transaction. To accept/reject Mail Preparation, they use Mail Acceptance Transaction.
+Mail Acceptance transaction has 5 fields. The first one is ```pub_key```. It contains information about inspector public key. The second one is ```sender_key```. It contains information about person public key who wants to stamp tokens. The third one is ```amount```. This field is about the number of tokens that should be stamped. The fourth one is ```accept```. This field is about inspector's decision (Accept or reject). The last field is seed field.
+
+#### Cancellation
+
+This kind of transaction needs three fields. The first one is ```pub_key```. This field contains public key of the inspector.
+The second one is ```sender_key```. This field contains the public key of the transaction creator. The last one is ```tx_hash```. This field contains hash of transaction that should be cancelled.
+ 
 ## Install and run
 
 ### Using docker
