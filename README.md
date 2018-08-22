@@ -135,9 +135,48 @@ use exonum_time::schema::TimeSchema;
 use POST_SERVICE_ID;
 use schema::{CurrencySchema, TimestampEntry};
 ```
-Second, defining transaction structs.
+Second, defining transaction structs and define errors.
 
 ```sh
+/// Error codes emitted by wallet transactions during execution.
+#[derive(Debug, Fail)]
+#[repr(u8)]
+pub enum Error {
+    /// Wallet already exists.
+    ///
+    /// Can be emitted by `CreateWallet`.
+    #[fail(display = "Wallet already exists")]
+    WalletAlreadyExists = 0,
+
+    /// Sender doesn't exist.
+    ///
+    /// Can be emitted by `Transfer`.
+    #[fail(display = "Sender doesn't exist")]
+    SenderNotFound = 1,
+
+    /// Receiver doesn't exist.
+    ///
+    /// Can be emitted by `Transfer` or `Issue`.
+    #[fail(display = "Receiver doesn't exist")]
+    ReceiverNotFound = 2,
+
+    /// Insufficient currency amount.
+    ///
+    /// Can be emitted by `Transfer`.
+    #[fail(display = "Insufficient currency amount")]
+    InsufficientCurrencyAmount = 3,
+
+    #[fail(display = "Time is up")]
+    Timeisup = 4,
+}
+
+impl From<Error> for ExecutionError {
+    fn from(value: Error) -> ExecutionError {
+        let description = format!("{}", value);
+        ExecutionError::with_description(value as u8, description)
+    }
+}
+
 transactions! {
     pub WalletTransactions {
         const SERVICE_ID = POST_SERVICE_ID;
@@ -183,6 +222,223 @@ transactions! {
         }
     }
 }
+
+
+impl Transaction for Issue {
+    fn verify(&self) -> bool {
+        self.verify_signature(self.issuer_key())
+    }
+
+    fn execute(&self, fork: &mut Fork) -> ExecutionResult {
+        let time = TimeSchema::new(&fork)
+            .time()
+            .get();
+        let mut schema = CurrencySchema :: new(fork);
+        let pub_key = self.pub_key();
+
+        if let Some(wallet) = schema.wallet(pub_key) {
+            let amount = self.amount();
+            schema.increase_wallet_balance(wallet, amount, &self.hash(), 0);
+
+            let entry = TimestampEntry::new(&self.hash(), time.unwrap());
+            schema.add_timestamp(entry);
+
+            Ok(())
+        } else {
+            Err(Error::ReceiverNotFound)?
+        }
+
+    }
+
+}
+
+
+impl Transaction for Transfer {
+    fn verify(&self) -> bool {
+        (self.from() != self.to()) && self.verify_signature(self.from())
+    }
+
+    fn execute(&self, fork: &mut Fork) -> ExecutionResult {
+        let time = TimeSchema::new(&fork)
+            .time()
+            .get();
+        
+        let mut schema = CurrencySchema::new(fork);
+        let from = self.from();
+        let to = self.to();
+        let hash = self.hash();
+        let amount = self.amount();
+        let freezed_balance = 0;
+        let sender = schema.wallet(from).ok_or(Error :: SenderNotFound)?;
+
+        let receiver = schema.wallet(to).ok_or(Error :: ReceiverNotFound)?;
+
+        if sender.balance() < amount {
+            Err(Error::InsufficientCurrencyAmount)?;
+
+        }
+
+        schema.decrease_wallet_balance(sender, amount, &hash, freezed_balance);
+        schema.increase_wallet_balance(receiver, amount, &hash, freezed_balance);
+        
+        let entry = TimestampEntry::new(&self.hash(), time.unwrap());
+        schema.add_timestamp(entry);
+        Ok(())
+    }
+}
+
+impl Transaction for CreateWallet {
+    fn verify(&self) -> bool {
+        self.verify_signature(self.pub_key())
+    }
+
+    fn execute(&self, fork: &mut Fork) -> ExecutionResult {
+        let time = TimeSchema::new(&fork)
+            .time()
+            .get();
+        let mut schema = CurrencySchema::new(fork);
+        let pub_key = self.pub_key();
+        let hash = self.hash();
+
+
+
+        if schema.wallet(pub_key).is_none(){
+            let name = self.name();
+            let freezed_balance = 0;
+            schema.create_wallet(pub_key, name, &hash, freezed_balance);
+
+            let entry = TimestampEntry::new(&self.hash(), time.unwrap());
+            schema.add_timestamp(entry);
+
+            Ok(())
+        } else {
+            Err(Error::WalletAlreadyExists)?
+        } 
+    } 
+}
+
+
+impl Transaction for MailPreparation {
+    fn verify(&self) -> bool {
+        self.verify_signature(self.pub_key())
+    }
+
+    fn execute(&self, fork: &mut Fork) -> ExecutionResult {
+        let time = TimeSchema::new(&fork)
+            .time()
+            .get();
+        let mut schema = CurrencySchema :: new(fork);
+        let pub_key = self.pub_key();
+        let amount = self.amount();
+        let hash = self.hash();
+        let sender = schema.wallet(pub_key).ok_or(Error :: SenderNotFound)?;
+        if sender.balance() < amount {
+            Err(Error::InsufficientCurrencyAmount)?;
+        }
+        // freeze_wallet_balance rrealize
+        schema.decrease_wallet_balance(sender, amount, &hash, amount);
+        let entry = TimestampEntry::new(&self.hash(), time.unwrap());
+        schema.add_timestamp(entry);
+        Ok(())
+    }
+}
+
+
+impl Transaction for MailAcceptance {
+    fn verify(&self) -> bool {
+        self.verify_signature(self.pub_key())
+    }
+
+
+
+    fn execute(&self, fork: &mut Fork) -> ExecutionResult {
+        let time = TimeSchema::new(&fork)
+            .time()
+            .get();
+        let mut schema = CurrencySchema :: new(fork);
+        let sender_key = self.sender_key();
+        let accept = self.accept();
+        let hash = self.hash();
+        let sender = schema.wallet(sender_key).ok_or(Error :: SenderNotFound)?;
+        if accept {
+            let freezed_balance = 0;
+            schema.decrease_wallet_balance(sender, freezed_balance, &hash, freezed_balance);
+        } else {
+            let amount = sender.freezed_balance();
+            let freezed_balance = 0;
+            schema.increase_wallet_balance(sender, amount, &hash, freezed_balance);
+        }
+        let entry = TimestampEntry::new(&self.hash(), time.unwrap());
+        schema.add_timestamp(entry);
+        Ok(())
+
+    }
+}
+
+impl Transaction for Cancellation {
+    fn verify(&self) -> bool {
+        self.verify_signature(self.pub_key())
+    }
+
+    
+
+    fn execute(&self, fork: &mut Fork) -> ExecutionResult {
+        let n = 100000;
+        let time = TimeSchema::new(&fork)
+            .time()
+            .get()
+            .unwrap();
+
+        let mut schema = CurrencySchema :: new(fork);
+
+        let sender_key = self.sender();
+        let tx_hash = self.tx_hash();
+        let hash = self.hash();
+        let tx_time = schema.timestamps().get(&tx_hash).unwrap();
+        if time.timestamp() - tx_time < n {
+            let raw_tx = schema.transactions().get(&tx_hash).unwrap();
+            if raw_tx.message_type() == 0 { //Transfer
+                let transaction: Transfer = Message::from_raw(raw_tx.clone()).unwrap();
+                let from = transaction.from();
+                let to = transaction.to();
+                let amount = transaction.amount();
+                let wallet_from = schema.wallet(&from).ok_or(Error :: SenderNotFound)?;
+                let wallet_to = schema.wallet(to).ok_or(Error :: ReceiverNotFound)?;
+                schema.decrease_wallet_balance(wallet_to, amount, &tx_hash, 0);
+                schema.increase_wallet_balance(wallet_from, amount, &tx_hash, 0);
+            } else if raw_tx.message_type() == 1 { //issue
+                let transaction: Issue = Message::from_raw(raw_tx.clone()).unwrap();
+                let pub_key = transaction.pub_key();
+                let amount = transaction.amount();
+                let sender = schema.wallet(&pub_key).ok_or(Error :: ReceiverNotFound)?;
+                schema.decrease_wallet_balance(sender, amount, &tx_hash, 0);
+            } else if raw_tx.message_type() == 3 { //MailPreparation
+                let transaction: MailPreparation = Message::from_raw(raw_tx.clone()).unwrap();
+                let pub_key = transaction.pub_key();
+                let amount = transaction.amount();
+                let sender = schema.wallet(&pub_key).ok_or(Error :: ReceiverNotFound)?;
+                schema.increase_wallet_balance(sender, amount, &hash, 0);
+            } else if raw_tx.message_type() == 4 { //MailAcceptance
+                let transaction: MailAcceptance = Message::from_raw(raw_tx.clone()).unwrap();
+                if transaction.accept() {
+                    let pub_key = transaction.sender_key();
+                    let amount = transaction.amount();
+                    let sender = schema.wallet(&pub_key).ok_or(Error :: ReceiverNotFound)?;
+                    schema.increase_wallet_balance(sender, amount, &hash, 0);
+                }
+            }
+        } else {
+            Err(Error::Timeisup)?;
+        }
+        
+        
+        let entry = TimestampEntry::new(&self.hash(), time);
+        schema.add_timestamp(entry);
+        Ok(())
+
+    }
+
+}
 ```
 
 #### Transfer
@@ -218,6 +474,134 @@ Mail Acceptance transaction has 5 fields. The first one is ```pub_key```. It con
 
 This kind of transaction needs three fields. The first one is ```pub_key```. This field contains public key of the inspector.
 The second one is ```sender_key```. This field contains the public key of the transaction creator. The last one is ```tx_hash```. This field contains hash of transaction that should be cancelled.
+
+## Api
+
+To work with our blockchain we need to proccess requests. Also we want to get/post some requests and see what's going on (transactions, wallet info and etc.).
+```sh
+use exonum::{
+    api::{self, ServiceApiBuilder, ServiceApiState},
+    blockchain::{self, BlockProof, Transaction, TransactionSet}, crypto::{Hash, PublicKey},
+    helpers::Height, node::TransactionSend, storage::{ListProof, MapProof},
+};
+
+use transactions::WalletTransactions;
+use wallet::Wallet;
+use {CurrencySchema, POST_SERVICE_ID};
+
+/// The structure describes the query parameters for the `get_wallet` endpoint.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub struct WalletQuery {
+    /// Public key of the queried wallet.
+    pub pub_key: PublicKey,
+}
+
+/// The structure returned by the REST API.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TransactionResponse {
+    /// Hash of the transaction.
+    pub tx_hash: Hash,
+}
+
+/// Proof of existence for specific wallet.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WalletProof {
+    /// Proof to the whole database table.
+    pub to_table: MapProof<Hash, Hash>,
+    /// Proof to the specific wallet in this table.
+    pub to_wallet: MapProof<PublicKey, Wallet>,
+}
+
+/// Wallet history.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WalletHistory {
+    pub proof: ListProof<Hash>,
+    pub transactions: Vec<WalletTransactions>,
+}
+
+/// Wallet information.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WalletInfo {
+    pub block_proof: BlockProof,
+    pub wallet_proof: WalletProof,
+    pub wallet_history: Option<WalletHistory>,
+}
+
+// TODO: Add documentation. (ECR-1638)
+/// Public service API description.
+#[derive(Debug, Clone, Copy)]
+pub struct CryptocurrencyApi;
+
+impl CryptocurrencyApi {
+    pub fn wallet_info(state: &ServiceApiState, query: WalletQuery) -> api::Result<WalletInfo> {
+        let snapshot = state.snapshot();
+        let general_schema = blockchain::Schema::new(&snapshot);
+        let currency_schema = CurrencySchema::new(&snapshot);
+
+        let max_height = general_schema.block_hashes_by_height().len() - 1;
+
+        let block_proof = general_schema
+            .block_and_precommits(Height(max_height))
+            .unwrap();
+
+        let to_table: MapProof<Hash, Hash> =
+            general_schema.get_proof_to_service_table(POST_SERVICE_ID, 0);
+
+        let to_wallet: MapProof<PublicKey, Wallet> =
+            currency_schema.wallets().get_proof(query.pub_key);
+
+        let wallet_proof = WalletProof {
+            to_table,
+            to_wallet,
+        };
+
+        let wallet = currency_schema.wallet(&query.pub_key);
+
+        let wallet_history = wallet.map(|_| {
+            let history = currency_schema.wallet_history(&query.pub_key);
+            let proof = history.get_range_proof(0, history.len());
+
+            let transactions: Vec<WalletTransactions> = history
+                .iter()
+                .map(|record| general_schema.transactions().get(&record).unwrap())
+                .map(|raw| WalletTransactions::tx_from_raw(raw).unwrap())
+                .collect::<Vec<_>>();
+
+            WalletHistory {
+                proof,
+                transactions,
+            }
+        });
+
+        Ok(WalletInfo {
+            block_proof,
+            wallet_proof,
+            wallet_history,
+        })
+    }
+
+    pub fn post_transaction(
+        state: &ServiceApiState,
+        query: WalletTransactions,
+    ) -> api::Result<TransactionResponse> {
+        let transaction: Box<dyn Transaction> = query.into();
+        let tx_hash = transaction.hash();
+        state.sender().send(transaction)?;
+        Ok(TransactionResponse { tx_hash })
+    }
+
+    pub fn wire(builder: &mut ServiceApiBuilder) {
+        builder
+            .public_scope()
+            .endpoint("v1/wallets/info", Self::wallet_info)
+            .endpoint_mut("v1/wallets/transaction", Self::post_transaction);
+    }
+}
+```
+
+## Schema
+
+
  
 ## Install and run
 
