@@ -858,6 +858,46 @@ Run nodes:
 ./exonum-russian-post run --node-config example/node_4_cfg.toml --db-path example/db4 --public-api-address 0.0.0.0:8203
 ```
 
+## Interaction
+
+To interact with blockchain we will use ```.json``` files. There are the examples of Mail Preparation and Mail Acceptance transactions below.
+
+##### Mail Preparation
+
+```sh
+{
+  "body": {
+    "amount": "11",
+    "meta": "",
+    "pub_key": "ae5a9a90348ca866e3d6f878c35f2130f9b6d4d8daabfadc7ff15c65c1994bf5",
+    "seed": "0"
+  },
+  "message_id": 3,
+  "protocol_version": 0,
+  "service_id": 128,
+  "signature": "89234fdb23065155e82e120f8bac5e21726107c968330e6e60ab6b9ff9b8a48a71b0fc0afab90118056a7a3510243db980179e53fe8f564ebc81608f1f87270e"
+}
+```
+
+##### Mail Acceptance
+
+```sh
+{
+  "body": {
+    "accept": false,
+    "amount": "11",
+    "pub_key": "5f3eb2f672baab17a9a06de555672a019630818a8167b994066bc90d4d7efa77",
+    "seed": "1",
+    "sender_key": "ae5a9a90348ca866e3d6f878c35f2130f9b6d4d8daabfadc7ff15c65c1994bf5"
+  },
+  "message_id": 4,
+  "protocol_version": 0,
+  "service_id": 128,
+  "signature": "3a6310285c4b82f1e14205018e64b28a4cb4fa79261a7e60483f0510b524752775ca12853835bc27b124819574f8351874d7ea95996b6211fe33ce27b76ccb01"
+}
+```
+To send requests you may use Postman or curl.
+
 <!-- markdownlint-enable MD013 -->
 ## License
 
