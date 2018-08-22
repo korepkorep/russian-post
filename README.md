@@ -601,42 +601,207 @@ impl CryptocurrencyApi {
 
 ## Schema
 
+Now, we have api, wallet, transactions. To combine this files we need the storage. Let's do it.
 
- 
-## Install and run
+```sh
+use exonum::{
+    crypto::{Hash, PublicKey}, storage::{Fork, ProofListIndex, ProofMapIndex, Snapshot, MapIndex},
+    messages::{RawMessage},
+};
 
-### Using docker
+use chrono::{DateTime, Utc};
 
-<!-- spell-checker:ignore serhiioryshych -->
+use wallet::Wallet;
+use INITIAL_BALANCE;
 
-Simply run the following command to start the cryptocurrency service on 4 nodes
-on the local machine:
 
-```bash
-docker run -p 8000-8008:8000-8008 serhiioryshych/exonum-cryptocurrency-advanced-example
+encoding_struct! {
+    /// Timestamp entry.
+    struct TimestampEntry {
+
+        /// Hash of transaction.
+        tx_hash: &Hash,
+
+        /// Timestamp time.
+        time: DateTime<Utc>,
+    }
+}
+
+
+
+/// Database schema for the cryptocurrency.
+#[derive(Debug)]
+pub struct CurrencySchema<T> {
+    view: T,
+}
+
+impl<T> AsMut<T> for CurrencySchema<T> {
+    fn as_mut(&mut self) -> &mut T {
+        &mut self.view
+    }
+}
+
+impl<T> CurrencySchema<T>
+where
+    T: AsRef<dyn Snapshot>,
+{
+    /// Constructs schema from the database view.
+    pub fn new(view: T) -> Self {
+        CurrencySchema { view }
+    }
+
+    /// Returns `MerklePatriciaTable` with wallets.
+    pub fn wallets(&self) -> ProofMapIndex<&T, PublicKey, Wallet> {
+        ProofMapIndex::new("cryptocurrency.wallets", &self.view)
+    }
+
+    /// Returns history of the wallet with the given public key.
+    pub fn wallet_history(&self, public_key: &PublicKey) -> ProofListIndex<&T, Hash> {
+        ProofListIndex::new_in_family("cryptocurrency.wallet_history", public_key, &self.view)
+    }
+
+    /// Returns wallet for the given public key.
+    pub fn wallet(&self, pub_key: &PublicKey) -> Option<Wallet> {
+        self.wallets().get(pub_key)
+    }
+
+    /// Returns state hash of service database.
+    pub fn state_hash(&self) -> Vec<Hash> {
+        vec![self.wallets().merkle_root()]
+    }
+
+    /// Returns table that represents a map from transaction hash into raw transaction message.
+    pub fn transactions(&self) -> MapIndex<&T, Hash, RawMessage> {
+        MapIndex::new("core.transactions", &self.view)
+    }
+
+    /// Returns the `ProofMapIndex` of timestamps.
+    pub fn timestamps(&self) -> ProofMapIndex<&T, Hash, i64> {
+        ProofMapIndex::new("cryptocurrency.timestamps", &self.view)
+    }
+
+    /// Returns the state hash of the timestamping service.
+    pub fn state_hash_timestamps(&self) -> Vec<Hash> {
+        vec![self.timestamps().merkle_root()]
+    }
+}
+
+/// Implementation of mutable methods.
+impl<'a> CurrencySchema<&'a mut Fork> {
+    /// Returns mutable `MerklePatriciaTable` with wallets.
+    pub fn wallets_mut(&mut self) -> ProofMapIndex<&mut Fork, PublicKey, Wallet> {
+        ProofMapIndex::new("cryptocurrency.wallets", &mut self.view)
+    }
+
+    /// Returns history for the wallet by the given public key.
+    pub fn wallet_history_mut(
+        &mut self,
+        public_key: &PublicKey,
+    ) -> ProofListIndex<&mut Fork, Hash> {
+        ProofListIndex::new_in_family("cryptocurrency.wallet_history", public_key, &mut self.view)
+    }
+
+    /// Increase balance of the wallet and append new record to its history.
+    ///
+    /// Panics if there is no wallet with given public key.
+    pub fn increase_wallet_balance(&mut self, wallet: Wallet, amount: u64, transaction: &Hash, freezed_balance: u64) {
+        let wallet = {
+            let mut history = self.wallet_history_mut(wallet.pub_key());
+            history.push(*transaction);
+            let history_hash = history.merkle_root();
+            let balance = wallet.balance();
+            wallet.set_balance(balance + amount, &history_hash, freezed_balance)
+        };
+        self.wallets_mut().put(wallet.pub_key(), wallet.clone());
+    }
+
+    /// Decrease balance of the wallet and append new record to its history.
+    ///
+    /// Panics if there is no wallet with given public key.
+    pub fn decrease_wallet_balance(&mut self, wallet: Wallet, amount: u64, transaction: &Hash, freezed_balance: u64) {
+        let wallet = {
+            let mut history = self.wallet_history_mut(wallet.pub_key());
+            history.push(*transaction);
+            let history_hash = history.merkle_root();
+            let balance = wallet.balance();
+            wallet.set_balance(balance - amount, &history_hash, freezed_balance)
+        };
+        self.wallets_mut().put(wallet.pub_key(), wallet.clone());
+    }
+
+    /// Create new wallet and append first record to its history.
+    pub fn create_wallet(&mut self, key: &PublicKey, name: &str, transaction: &Hash, freezed_balance: u64) {
+        let wallet = {
+            let mut history = self.wallet_history_mut(key);
+            history.push(*transaction);
+            let history_hash = history.merkle_root();
+            let freezed_balance = 0;
+            Wallet::new(key, name, INITIAL_BALANCE, history.len(), &history_hash, freezed_balance)
+        };
+        self.wallets_mut().put(key, wallet);
+    }
+
+    /// Returns mut table that represents a map from transaction hash into raw transaction message.
+    pub fn transactions_mut(&mut self) -> MapIndex<&mut Fork, Hash, RawMessage> {
+        MapIndex::new("core.transactions", &mut self.view)
+    }
+
+    /// Returns the mutable `ProofMapIndex` of timestamps.
+    pub fn timestamps_mut(&mut self) -> ProofMapIndex<&mut Fork, Hash, i64> {
+        ProofMapIndex::new("cryptocurrency.timestamps", &mut self.view)
+    }
+
+    /// Adds the timestamp entry to the database.
+    pub fn add_timestamp(&mut self, timestamp_entry: TimestampEntry) {
+        let tx_hash = timestamp_entry.tx_hash();
+        let time = timestamp_entry.time();
+
+        // Check that timestamp with given content_hash does not exist.
+        if self.timestamps().contains(tx_hash) {
+            return;
+        }
+
+        // Add timestamp
+        self.timestamps_mut().put(tx_hash, time.timestamp());
+    }
+}
+```
+Now, we described all methods that we need in our database. So, now we can extract neccessary transactions, wallets and etc.
+Almost everything is ready to launch the blockchain.
+
+## Main
+
+Main file is all we need to launch.
+
+```sh
+extern crate exonum;
+extern crate exonum_configuration;
+extern crate exonum_russian_post;
+extern crate exonum_time;
+
+use exonum::helpers::{self, fabric::NodeBuilder};
+use exonum_configuration as configuration;
+use exonum_russian_post as cryptocurrency;
+use exonum_time::TimeServiceFactory;
+
+
+fn main() {
+    exonum::crypto::init();
+    helpers::init_logger().unwrap();
+
+    let node = NodeBuilder::new()
+        .with_service(Box::new(configuration::ServiceFactory))
+        .with_service(Box::new(TimeServiceFactory))
+        .with_service(Box::new(cryptocurrency::ServiceFactory));
+    node.run();
+}
 ```
 
-Ready! Find demo at [http://127.0.0.1:8008](http://127.0.0.1:8008).
-
-Docker will automatically pull image from the repository and
-run 4 nodes with public endpoints at `127.0.0.1:8000`, ..., `127.0.0.1:8003`
-and private ones at `127.0.0.1:8004`, ..., `127.0.0.1:8007`.
-
-To stop docker container, use `docker stop <container id>` command.
-
-### Manually
-
-#### Getting started
-
-Be sure you installed necessary packages:
-
-- [git](https://git-scm.com/downloads)
-- [Node.js with npm](https://nodejs.org/en/download/)
-- [Rust compiler](https://rustup.rs/)
+Ok, everything is ready. Let's run our project.
 
 #### Install and run
 
-Below you will find a step-by-step guide to starting the cryptocurrency
+Below you will find a step-by-step guide to starting the post-office
 service on 4 nodes on the local machine.
 
 Build the project:
