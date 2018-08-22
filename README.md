@@ -807,7 +807,7 @@ service on 4 nodes on the local machine.
 Build the project:
 
 ```sh
-cd examples/cryptocurrency-advanced/backend
+cd examples/russian-post/backend
 
 cargo install
 ```
