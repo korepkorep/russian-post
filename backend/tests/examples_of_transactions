@@ -1,0 +1,136 @@
+issue for cancel
+
+{
+  "body": {
+    "amount": "60",
+    "issuer_key": "0678b9932dd9e2a3ac9ff0c49f399ccf2fd57d0e0542ba94b18580a0d89d3b77",
+    "pub_key": "1728c0ef833895aa6ebc3cdcfbecb163eb18339fd89cdd20caf9bc4594b26638",
+    "seed": "4"
+  },
+  "message_id": 1,
+  "protocol_version": 0,
+  "service_id": 128,
+  "signature": "2005022a8c0d462318979d6d082df518a4074022199ce215efea3fc083a4e7464b15d0c42da7899818b6bef342d9259fd729862fb771549f581da65f2616c20d"
+}
+
+cancel for issue
+
+{
+  "body": {
+    "pub_key": "0678b9932dd9e2a3ac9ff0c49f399ccf2fd57d0e0542ba94b18580a0d89d3b77",
+    "sender": "1728c0ef833895aa6ebc3cdcfbecb163eb18339fd89cdd20caf9bc4594b26638",
+    "tx_hash": "89ddeb658d8531e2f1e7affa38ed01cae8b9ff6cb0488fe47e73a8475a4122bc"
+  },
+  "message_id": 5,
+  "protocol_version": 0,
+  "service_id": 128,
+  "signature": "6da028ed8631aa94bfe21445f8a0d4517b5521f05988da455e3289a1b40117011063cec891fe2dfcce39e72ec53aede7781079de7fd97bf27144c38fb40cce07"
+}
+
+
+
+preparation
+
+{
+  "body": {
+    "amount": "11",
+    "meta": "",
+    "pub_key": "1e295f52e7e2c2a0cb7682ada38ccd3086af368b532e42a30f84a9c3d539239a",
+    "seed": "0"
+  },
+  "message_id": 3,
+  "protocol_version": 0,
+  "service_id": 128,
+  "signature": "b41088d000a97d455097cef98b27b5efc0b11f35610ad5841311e12f7d8df09cf54c7909e6fbfa1cb081e6af7b7bc11739cbb49c079adda9fb0819430bc09e0f"
+}
+
+acceptance
+
+ {
+  "body": {
+    "accept": false,
+    "amount": "11",
+    "pub_key": "7201112d31d37f35642ef5dd8dbc5ee4fb6e88c82a99c7c93deeb0be97775486",
+    "seed": "1",
+    "sender_key": "1e295f52e7e2c2a0cb7682ada38ccd3086af368b532e42a30f84a9c3d539239a"
+  },
+  "message_id": 4,
+  "protocol_version": 0,
+  "service_id": 128,
+  "signature": "7dd1633b253b5292cad75cdcbca0b1ae39b80e4daac014844e7d26901b508287b6c01862ebace90028c0bae1ad72201522104cfa143ba026eef3ac78aba61504"
+}
+
+transfer for cancel
+
+{
+  "body": {
+    "amount": "60",
+    "from": "b1cd79b535be6a551a1e7f016f65f9552eb5a7aaff5498e2a7718d89fa45bf11",
+    "seed": "4",
+    "to": "fe7fa548c0226840f35297f99a994f162eb9ed58654fa29381286bf4976e9e89"
+  },
+  "message_id": 0,
+  "protocol_version": 0,
+  "service_id": 128,
+  "signature": "4616a6ace2bf9eff8b7a299814afbdfee5fa6d62a2443e73adc916fd006b3b7aa309233a751ce3def2dff931af3058759f81acb0eb86642c1474eaf0cb82890b"
+}
+
+cancel for transfer
+
+{
+  "body": {
+    "pub_key": "324a3c2dd0160c9c3c3b6c69c3733f67c3c1a7e2d7194e4c85e3ba1dd5a6683e",
+    "sender": "b1cd79b535be6a551a1e7f016f65f9552eb5a7aaff5498e2a7718d89fa45bf11",
+    "tx_hash": "8e30ec1f6c27ce80da9a7b67929d666db2f8e50f03da800a3d3723e2d4215619"
+  },
+  "message_id": 5,
+  "protocol_version": 0,
+  "service_id": 128,
+  "signature": "bc34fa0122d273e1e25533a619f2e75b5234eacd7697e08166ae46690ff42e82c9db51e7b13ba4249264afb59b61135d440201ac5b8c9b139da8005ee8fd930e"
+}
+
+issue 
+
+ {
+  "body": {
+    "amount": "11",
+    "issuer_key": "19a5030e3ad671ef7ef72807bde495aadc008d79c6aef8f7e95d92878a75259a",
+    "pub_key": "f3f2a32e5399410bb3f75434df5f02b67c58bd317a8f0154dbd299b4f9d2c990",
+    "seed": "0"
+  },
+  "message_id": 1,
+  "protocol_version": 0,
+  "service_id": 128,
+  "signature": "7a73ab93b2785c63136c92ce4893fc611f30f3ded3068f8589f268aa771aaeaca548719f1932a011be7e6cd2e8eeadc02ede1638deb8ebc97079a30b43d16a0e"
+}
+
+transfer
+
+{
+  "body": {
+    "amount": "10",
+    "from": "c92ed61d22f69417a472af3fc9cf6acbe525fd2bbe00d21617f1a9a3b4c75584",
+    "seed": "0",
+    "to": "7196d48c6eacd941ede9e9489c372cd5a28906f110aa974ac56d48c145507416"
+  },
+  "message_id": 0,
+  "protocol_version": 0,
+  "service_id": 128,
+  "signature": "2c3a0951db639976d5df8faf618e161661857a57a300ca3b9d381af9e480e59bb67acf8310a44cbc030defa5a7996f0b476156eea03dba0c02d9810fc5950501"
+}
+
+
+
+create wallet 
+{
+  "body": {
+    "name": "Alice",
+    "pub_key": "9f0821ba605682ae2b92a529d50218e5cc5f42452321448857db3e45c936340a"
+  },
+  "message_id": 2,
+  "protocol_version": 0,
+  "service_id": 128,
+  "signature": "8de305b177cb4816f315a99e6a7542ca2acd056839610bb008367ae9afdec5c5e34cebfdd08700a8f4ffd70605ee315bcd4e767914c2d66044f35c2231dd0c05"
+}
+
+
