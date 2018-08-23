@@ -42,14 +42,12 @@ use exonum::{
 use transactions::WalletTransactions;
 
 /// Unique service ID.
-const POST_SERVICE_ID: u16 = 128;
+const CRYPTOCURRENCY_SERVICE_ID: u16 = 128;
 /// Name of the service.
 pub const SERVICE_NAME: &str = "cryptocurrency";
 /// Initial balance of the wallet.
 const INITIAL_BALANCE: u64 = 100;
-const BLOCK_SIZE: u64 = 1;
-const NUM_BLOCKS: u64 = 2;
-const SP: f64 = 3.0;
+
 /// Exonum `Service` implementation.
 #[derive(Default, Debug)]
 pub struct CurrencyService;
@@ -60,7 +58,7 @@ impl Service for CurrencyService {
     }
 
     fn service_id(&self) -> u16 {
-        POST_SERVICE_ID
+        CRYPTOCURRENCY_SERVICE_ID
     }
 
     fn state_hash(&self, view: &dyn Snapshot) -> Vec<Hash> {

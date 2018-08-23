@@ -43,6 +43,8 @@ use std::time::SystemTime;
 
 // Imports shared test constants.
 use constants::{ALICE_NAME, BOB_NAME, JOHN_NAME};
+
+
 mod constants;
 
 /// Check that the wallet creation transaction works when invoked via API.
@@ -56,15 +58,14 @@ fn test_create_wallet() {
 
     // Check that the user indeed is persisted by the service.
     let wallet = api.get_wallet(*tx.pub_key()).unwrap();
+    println!("{}", serde_json::to_string_pretty(&tx).unwrap());
     assert_eq!(wallet.pub_key(), tx.pub_key());
     assert_eq!(wallet.name(), tx.name());
     assert_eq!(wallet.balance(), 100);
 }
-
 #[test]
 fn test_issue() {
     let (mut testkit, api, _) = create_testkit();
-
     let (tx_alice, key_alice) = api.create_wallet(ALICE_NAME);
     let (tx_bob, key_bob) = api.create_wallet(BOB_NAME);
     testkit.create_block();
@@ -82,7 +83,7 @@ fn test_issue() {
         0,
         &key_bob,
     );
-
+    println!("{}", serde_json::to_string_pretty(&tx).unwrap());
     api.issue(&tx);
     testkit.create_block();
     api.assert_tx_status(tx.hash(), &json!({ "type": "success" }));
@@ -160,7 +161,8 @@ fn test_acceptance() {
     assert_eq!(wallet.balance(), 89);
     let wallet = api.get_wallet(*tx_bob.pub_key()).unwrap();
     assert_eq!(wallet.balance(), 100);
-    println!("{}", serde_json::to_string_pretty(&tx2).unwrap());
+    
+    //println!("{}", serde_json::to_string_pretty(&tx2).unwrap());
     let tx3 = MailAcceptance :: new(
         tx_bob.pub_key(),
         tx_alice.pub_key(),
@@ -254,7 +256,6 @@ fn test_transfer() {
     let wallet = api.get_wallet(*tx_bob.pub_key()).unwrap();
     assert_eq!(wallet.balance(), 110);
 }
-
 
 /// Check that a transfer from a non-existing wallet fails as expected.
 #[test]
@@ -577,6 +578,33 @@ fn test_cancellation_mailacceptance() {
     let wallet = api.get_wallet(*tx_alice.pub_key()).unwrap();
     assert_eq!(wallet.balance(), 100);
 }
+
+/*
+#[test]
+fn test_print_signature_issue(){
+    let (pubkey, _) = gen_keypair();
+    let (issuer_key, seckey) = gen_keypair();
+    let issue = Issue ::new(
+    &pubkey,
+    &issuer_key,
+    100,
+    3,
+    &seckey);
+    let serialized = serde_json::to_string(&issue).unwrap();
+    let signature = sign(&serialized.into_bytes(), &seckey);
+    /*fn write_to_file(sign: &String, pubkey: &String, seckey: &String) -> std::io::Result<()> {
+	    let mut file = File::create("issue.txt")?;
+	    let sign_f = sign.clone();
+	    let pubkey_f = pubkey.clone();
+	    let seckey_f = seckey.clone();
+	    file.write_all(&sign_f.into_bytes())?;
+	    file.write_all(b"\n");
+	    file.write_all(&pubkey_f.into_bytes())?;
+	    file.write_all(b"\n");
+	    file.write_all(&seckey_f.into_bytes())?;
+	    file.write_all(b"\n");
+	    Ok(())
+    };*/
     let s = serde_json::to_string(&signature).unwrap();
     let p = serde_json::to_string(&pubkey).unwrap();
     let sk = serde_json::to_string(&seckey).unwrap();
@@ -587,6 +615,92 @@ fn test_cancellation_mailacceptance() {
     assert_eq!(1, 1);
 }
 
+#[test]
+fn test_print_signature_acceptance(){
+    let (pubkey, seckey) = gen_keypair();
+    let (pubkey_s, _) = gen_keypair();
+    let accept = MailAcceptance ::new(
+    &pubkey,
+    &pubkey_s,
+    100,
+    true,
+    3,
+    &seckey);
+    let serialized = serde_json::to_string(&accept).unwrap();
+    let signature = sign(&serialized.into_bytes(), &seckey);
+    let s = serde_json::to_string(&signature).unwrap();
+    let p = serde_json::to_string(&pubkey).unwrap();
+    let sk = serde_json::to_string(&seckey).unwrap();
+    let p_s = serde_json::to_string(&pubkey_s).unwrap();
+    
+    
+    println!("signature = {:5?}\n", &s);
+    println!("pubkey = {:5?}\n seckey = {:5?}\n", &p, &sk);
+    println!("pubkey_sender = {:5?}\n", &p_s);
+    assert_eq!(1, 1);
+}
+
+#[test]
+fn test_print_signature_preparation(){
+    let (pubkey, seckey) = gen_keypair();
+    let prep = MailPreparation ::new(
+    "hello",
+    &pubkey,
+    100,
+    3,
+    &seckey);
+    let serialized = serde_json::to_string(&prep).unwrap();
+    let signature = sign(&serialized.into_bytes(), &seckey);
+    let s = serde_json::to_string(&signature).unwrap();
+    let p = serde_json::to_string(&pubkey).unwrap();
+    let sk = serde_json::to_string(&seckey).unwrap();
+    
+    println!("signature = {:5?}\n", &s);
+    println!("pubkey = {:5?}\n seckey = {:5?}\n", &p, &sk);
+    assert_eq!(1, 1);
+}
+
+#[test]
+fn test_print_signature_create_wallet(){
+    let (pubkey, seckey) = gen_keypair();
+    let wallet = CreateWallet ::new(
+    &pubkey,
+    "Sasha",
+    &seckey);
+
+    let serialized = serde_json::to_string(&wallet).unwrap();
+    let signature = sign(&serialized.into_bytes(), &seckey);
+    let s = serde_json::to_string(&signature).unwrap();
+    let p = serde_json::to_string(&pubkey).unwrap();
+    let sk = serde_json::to_string(&seckey).unwrap();
+    
+    println!("signature = {:5?}\n", &s);
+    println!("pubkey = {:5?}\n seckey = {:5?}\n", &p, &sk);
+    assert_eq!(1, 1);
+}
+
+#[test]
+fn test_print_signature_transfer(){
+    let (pubkey, seckey) = gen_keypair();
+    let (pubkey_to, _) = gen_keypair();
+    let transfer = Transfer ::new(
+    &pubkey,
+    &pubkey_to,
+    100,
+    3,
+    &seckey);
+
+    let serialized = serde_json::to_string(&transfer).unwrap();
+    let signature = sign(&serialized.into_bytes(), &seckey);
+    let s = serde_json::to_string(&signature).unwrap();
+    let p = serde_json::to_string(&pubkey).unwrap();
+    let sk = serde_json::to_string(&seckey).unwrap();
+    let pub_t = serde_json::to_string(&pubkey_to).unwrap();
+    println!("signature_from = {:5?}\n", &s);
+    println!("pubkey_from = {:5?}\n seckey_from = {:5?}\n", &p, &sk);
+    println!("pubkey_to = {:5?}\n", &pub_t);
+    assert_eq!(1, 1);
+}*/
 /// Wrapper for the cryptocurrency service API allowing to easily use it
 /// (compared to `TestKitApi` calls).
 struct CryptocurrencyApi {
@@ -628,15 +742,6 @@ impl CryptocurrencyApi {
             .and_then(|tuple| tuple.1)
             .cloned()
     }
-    
-    fn preparation(&self, tx: &MailPreparation) {
-        let tx_info: serde_json::Value = self.inner
-            .public(ApiKind::Service("cryptocurrency"))
-            .query(&tx)
-            .post("v1/wallets/transaction")
-            .unwrap();
-        assert_eq!(tx_info, json!({ "tx_hash": tx.hash() }));
-    }
 
     fn preparation(&self, tx: &MailPreparation) {
         let tx_info: serde_json::Value = self.inner
@@ -674,7 +779,6 @@ impl CryptocurrencyApi {
             .unwrap();
         assert_eq!(tx_info, json!({ "tx_hash": tx.hash() }));
     }
-
 
     fn cancellation(&self, tx: &Cancellation) {
     	let tx_info: serde_json::Value = self.inner
