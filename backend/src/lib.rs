@@ -47,7 +47,9 @@ const POST_SERVICE_ID: u16 = 128;
 pub const SERVICE_NAME: &str = "cryptocurrency";
 /// Initial balance of the wallet.
 const INITIAL_BALANCE: u64 = 100;
-
+const BLOCK_SIZE: u64 = 1;
+const NUM_BLOCKS: u64 = 2;
+const SP: f64 = 3.0;
 /// Exonum `Service` implementation.
 #[derive(Default, Debug)]
 pub struct CurrencyService;
