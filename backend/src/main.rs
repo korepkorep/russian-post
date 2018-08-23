@@ -14,12 +14,12 @@
 
 extern crate exonum;
 extern crate exonum_configuration;
-extern crate exonum_cryptocurrency_advanced;
+extern crate exonum_russian_post;
 extern crate exonum_time;
 
 use exonum::helpers::{self, fabric::NodeBuilder};
 use exonum_configuration as configuration;
-use exonum_cryptocurrency_advanced as cryptocurrency;
+use exonum_russian_post as cryptocurrency;
 use exonum_time::TimeServiceFactory;
 
 

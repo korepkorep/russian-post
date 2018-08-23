@@ -31,7 +31,7 @@ use exonum::messages::RawMessage;
 use exonum::storage::Snapshot;
 use exonum_time::schema::TimeSchema;
 
-use CRYPTOCURRENCY_SERVICE_ID;
+use POST_SERVICE_ID;
 use schema::{CurrencySchema, TimestampEntry};
 
 /// Error codes emitted by wallet transactions during execution.
@@ -76,7 +76,7 @@ impl From<Error> for ExecutionError {
 
 transactions! {
     pub WalletTransactions {
-        const SERVICE_ID = CRYPTOCURRENCY_SERVICE_ID;
+        const SERVICE_ID = POST_SERVICE_ID;
 
         /// Transfer `amount` of the currency from one wallet to another.
         struct Transfer {

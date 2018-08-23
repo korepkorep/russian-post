@@ -19,7 +19,7 @@
 //! about the storage state.
 
 extern crate exonum;
-extern crate exonum_cryptocurrency_advanced as cryptocurrency;
+extern crate exonum_russian_post as cryptocurrency;
 extern crate exonum_testkit;
 extern crate exonum_time;
 #[macro_use]
@@ -27,7 +27,7 @@ extern crate serde_json;
 
 use exonum::{
     api::node::public::explorer::TransactionQuery,
-    crypto::{self, CryptoHash, Hash, PublicKey, SecretKey, sign, gen_keypair}, 
+    crypto::{self, CryptoHash, Hash, PublicKey, SecretKey}, 
     helpers::Height,
 };
 use exonum_testkit::{ApiKind, TestKit, TestKitApi, TestKitBuilder};
@@ -66,7 +66,7 @@ fn test_create_wallet() {
 #[test]
 fn test_issue() {
     let (mut testkit, api, _) = create_testkit();
-    let (tx_alice, key_alice) = api.create_wallet(ALICE_NAME);
+    let (tx_alice, _key_alice) = api.create_wallet(ALICE_NAME);
     let (tx_bob, key_bob) = api.create_wallet(BOB_NAME);
     testkit.create_block();
     api.assert_tx_status(tx_alice.hash(), &json!({ "type": "success" }));
@@ -74,7 +74,7 @@ fn test_issue() {
 
     let wallet = api.get_wallet(*tx_alice.pub_key()).unwrap();
     assert_eq!(wallet.balance(), 100);
-    let wallet = api.get_wallet(*tx_bob.pub_key()).unwrap();
+    let _wallet = api.get_wallet(*tx_bob.pub_key()).unwrap();
 
     let tx = Issue :: new(
         tx_alice.pub_key(),

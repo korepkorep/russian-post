@@ -1,5 +1,5 @@
 [package]
-name = "exonum-cryptocurrency-advanced"
+name = "exonum-russian-post"
 version = "0.9.0"
 authors = ["The Exonum Team <exonum@bitfury.com>"]
 homepage = "https://exonum.com/"
@@ -8,7 +8,7 @@ readme = "README.md"
 license = "Apache-2.0"
 keywords = ["exonum", "blockchain", "example"]
 categories = ["rust-patterns", "development-tools::testing"]
-description = "Exonum blockchain example implementing a cryptocurrency."
+description = "Exonum blockchain example implementing a post office."
 
 [badges]
 travis-ci = { repository = "exonum/exonum" }
