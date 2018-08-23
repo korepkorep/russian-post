@@ -20,8 +20,10 @@ use exonum::{
 };
 
 use chrono::{DateTime, Utc};
+
 use wallet::Wallet;
 use INITIAL_BALANCE;
+
 
 encoding_struct! {
     /// Timestamp entry.
@@ -34,6 +36,8 @@ encoding_struct! {
         time: DateTime<Utc>,
     }
 }
+
+
 
 /// Database schema for the cryptocurrency.
 #[derive(Debug)]
@@ -116,6 +120,7 @@ impl<'a> CurrencySchema<&'a mut Fork> {
             history.push(*transaction);
             let history_hash = history.merkle_root();
             let balance = wallet.balance();
+            /////////////////////////////
             wallet.set_balance(balance + amount, &history_hash, freezed_balance)
         };
         self.wallets_mut().put(wallet.pub_key(), wallet.clone());
