@@ -947,13 +947,61 @@ impl NodeHandler {
             let schema = Schema::new(&snapshot);
             let pool = schema.transactions_pool();
             let pool_len = schema.transactions_pool_len();
+            let transactions = schema.transactions();
 
             info!("LEADER: pool = {}", pool_len);
 
             let round = self.state.round();
             let max_count = ::std::cmp::min(self.txs_block_limit() as usize, pool_len);
 
-            let txs: Vec<Hash> = pool.iter().take(max_count).collect();
+            let mut txs = Vec :: new();
+
+
+            for tx_hash in pool.iter() {
+                println!("{:?}", tx_hash);
+                let raw_tx = transactions.get(&tx_hash).unwrap();
+                //Checking Transfer change to 0 back
+                if raw_tx.message_type() == 1 {
+                    println!("Checked in");
+                    let tx: Transfer = Message::from_raw(raw_tx.clone()).unwrap();
+                    let from = tx.from();
+                    let priority = 12;
+                    println!("{:?}", tx);
+                        if self.user_priority.contains_key(from) {
+                            self.user_priority.remove(from);
+                            self.user_priority.insert(*from, priority);
+                        } else {
+                        self.user_priority.insert(*from, priority); 
+                        }
+                    }
+                if raw_tx.message_type() == 4 {
+                    println!("Issue");
+                    let tx: MailPreparation = Message :: from_raw(raw_tx.clone()).unwrap();
+                    let pub_key = tx.pub_key();
+                    let priority = 10;
+                    println!("{:?}",tx);
+                    if self.user_priority.contains_key(pub_key) {
+                        self.user_priority.remove(pub_key);
+                        self.user_priority.insert(*pub_key, priority);
+                        } else {
+                            self.user_priority.insert(*pub_key, priority); 
+                        }
+                    }
+
+                if raw_tx.message_type() != 4 && raw_tx.message_type() != 1 {
+                    if txs.len() <= (self.txs_block_limit() / 2) as usize {
+                        txs.push(tx_hash);
+                    }
+                }
+            }
+                println!("{:?}",self.user_priority);
+            ////////////////////////////////////////
+            /*
+            if txs.len() <= self.txs_block_limit() / 2 {
+                txs.push()
+            }
+            */
+            //let txs: Vec<Hash> = pool.iter().take(max_count).collect();
             let propose = Propose::new(
                 validator_id,
                 self.state.height(),
@@ -979,7 +1027,45 @@ impl NodeHandler {
             }
         }
     }
+    /*
+    /// Priorities for transactions
+    pub fn set_priority(&self, tx_hashes: &[Hash]) {
+        let schema = Schema :: new(self.blockchain.snapshot());
+        for (index, hash) in tx_hashes.iter().enumerate() {
+            println!("{:?}", schema.transactions().get(hash));
+            let raw_tx = schema.transactions().get(hash).unwrap();
+            //Checking Transfer
+            if raw_tx.message_type() == 0 {
+                println!("Checked in");
+                let tx: Transfer = Message::from_raw(raw_tx.clone()).unwrap();
+                let from = tx.from();
+                let priority = 12;
+                println!("{:?}", tx);
+                if self.user_priority.contains_key(from) {
+                    self.user_priority.remove(from);
+                    self.user_priority.insert(*from, priority);
+                } else {
+                    self.user_priority.insert(*from, priority); 
+                }
+            }
+            if raw_tx.message_type() == 3 {
+                println!("Issue");
+                let tx: MailPreparation = Message :: from_raw(raw_tx.clone()).unwrap();
+                let pub_key = tx.pub_key();
+                let priority = 10;
+                println!("{:?}",tx);
+                if self.user_priority.contains_key(pub_key) {
+                    self.user_priority.remove(pub_key);
+                    self.user_priority.insert(*pub_key, priority);
+                } else {
+                    self.user_priority.insert(*pub_key, priority); 
+                }
 
+            }
+        }
+        println!("{:?}",self.user_priority);
+    }
+    */
     /// Handles request timeout by sending the corresponding request message to a peer.
     pub fn handle_request_timeout(&mut self, data: &RequestData, peer: Option<PublicKey>) {
         trace!("HANDLE REQUEST TIMEOUT");
@@ -1057,40 +1143,6 @@ impl NodeHandler {
         height: Height,
         tx_hashes: &[Hash],
     ) -> (Hash, Patch) {
-        let schema = Schema :: new(self.blockchain.snapshot());
-        for (index, hash) in tx_hashes.iter().enumerate() {
-            println!("{:?}", schema.transactions().get(hash));
-            let raw_tx = schema.transactions().get(hash).unwrap();
-            //Checking Transfer
-            if raw_tx.message_type() == 0 {
-                println!("Checked in");
-                let tx: Transfer = Message::from_raw(raw_tx.clone()).unwrap();
-                let from = tx.from();
-                let priority = 12;
-                println!("{:?}", tx);
-                if self.user_priority.contains_key(from) {
-                    self.user_priority.remove(from);
-                    self.user_priority.insert(*from, priority);
-                } else {
-                    self.user_priority.insert(*from, priority); 
-                }
-            }
-            if raw_tx.message_type() == 3 {
-                println!("Issue");
-                let tx: MailPreparation = Message :: from_raw(raw_tx.clone()).unwrap();
-                let pub_key = tx.pub_key();
-                let priority = 10;
-                println!("{:?}",tx);
-                if self.user_priority.contains_key(pub_key) {
-                    self.user_priority.remove(pub_key);
-                    self.user_priority.insert(*pub_key, priority);
-                } else {
-                    self.user_priority.insert(*pub_key, priority); 
-                }
-
-            }
-        }
-        println!("{:?}",self.user_priority);
         self.blockchain.create_patch(proposer_id, height, tx_hashes)
     }
 
