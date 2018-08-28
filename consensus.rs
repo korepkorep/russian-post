@@ -943,6 +943,7 @@ impl NodeHandler {
             if self.state.have_prevote(round) {
                 return;
             }
+
             let snapshot = self.blockchain.snapshot();
             let schema = Schema::new(&snapshot);
             let pool = schema.transactions_pool();
@@ -953,15 +954,15 @@ impl NodeHandler {
 
             let round = self.state.round();
             let max_count = ::std::cmp::min(self.txs_block_limit() as usize, pool_len);
-
+            let mut count = 0;
             let mut txs = Vec :: new();
-
+            let mut temp_tx_hashes = Vec :: new();
 
             for tx_hash in pool.iter() {
                 println!("{:?}", tx_hash);
                 let raw_tx = transactions.get(&tx_hash).unwrap();
                 //Checking Transfer change to 0 back
-                if raw_tx.message_type() == 1 {
+                if raw_tx.message_type() == 2 {
                     println!("Checked in");
                     let tx: Transfer = Message::from_raw(raw_tx.clone()).unwrap();
                     let from = tx.from();
@@ -973,8 +974,11 @@ impl NodeHandler {
                         } else {
                         self.user_priority.insert(*from, priority); 
                         }
-                    }
-                if raw_tx.message_type() == 4 {
+
+                    temp_tx_hashes.push((*from, tx_hash));
+                }
+                
+                if raw_tx.message_type() == 1 {
                     println!("Issue");
                     let tx: MailPreparation = Message :: from_raw(raw_tx.clone()).unwrap();
                     let pub_key = tx.pub_key();
@@ -983,18 +987,36 @@ impl NodeHandler {
                     if self.user_priority.contains_key(pub_key) {
                         self.user_priority.remove(pub_key);
                         self.user_priority.insert(*pub_key, priority);
-                        } else {
-                            self.user_priority.insert(*pub_key, priority); 
-                        }
+                    } else {
+                        self.user_priority.insert(*pub_key, priority); 
                     }
+                    temp_tx_hashes.push((*pub_key, tx_hash));
+                }
 
-                if raw_tx.message_type() != 4 && raw_tx.message_type() != 1 {
+                if raw_tx.message_type() != 3 && raw_tx.message_type() != 1 {
                     if txs.len() <= (self.txs_block_limit() / 2) as usize {
                         txs.push(tx_hash);
                     }
                 }
+
             }
-                println!("{:?}",self.user_priority);
+            
+            let mut map = self.user_priority.clone();
+            let mut currency_user_priority: Vec<_> = map.iter().collect();
+
+            currency_user_priority.sort_by_key(|x| x.1);
+            for user_key in currency_user_priority.iter() {
+                for public_key in temp_tx_hashes.iter() {
+                    if *user_key.0 == public_key.0 && txs.len() < self.txs_block_limit() as usize {
+                        txs.push(public_key.1);
+                        break;
+                    } 
+                }
+            }
+
+            println!("{:?}",self.user_priority);
+            println!("{:?}", txs);
+            println!("{:?}", currency_user_priority);
             ////////////////////////////////////////
             /*
             if txs.len() <= self.txs_block_limit() / 2 {
@@ -1027,6 +1049,7 @@ impl NodeHandler {
             }
         }
     }
+
     /*
     /// Priorities for transactions
     pub fn set_priority(&self, tx_hashes: &[Hash]) {
