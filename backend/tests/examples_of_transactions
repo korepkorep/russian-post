@@ -84,42 +84,53 @@ ISSUE
 		 issue = {
 		  "body": {
 		    "amount": "11",
-		    "issuer_key": "4cd886513146521426dda453c58f32180aebf7926033f3b48b15de680695f084",
-		    "pub_key": "41b3f7d872cc5825f698369bbfa3d5f3e7c84eb09ad399cf48326bed0a3a9ac8",
+		    "issuer_key": "c7b7f9557503d79fd8f4ae72e15af7e6791535902d88b6238ba4335bb2056930",
+		    "pub_key": "f2a46e4365bffec7d663fdec92a76e73e08652baed23cfbb02744bd00f6e588b",
 		    "seed": "0"
 		  },
 		  "message_id": 1,
 		  "protocol_version": 0,
 		  "service_id": 128,
-		  "signature": "abb05bee45d50c9a00cdd71b758bf406744e7bb8a971f0cbccc40f8b46e81c68d26deb5b2e375da5483e74511939f2a6f269b4969bec02df7a212c3661495704"
+		  "signature": "4e8718578f18f3db7f0eee98ef008f3b062926046ca4649ee73ae1daa9d5f37cca1f3f67926c4f80abf85c06f4077d273a07d6d6a3115d0d9d8b498633485901"
 		}
-
-
-	signed by user or inspector
-
-		 issue = {
-		  "body": {
-		    "amount": "11",
-		    "issuer_key": "4e8d1729ed181988d66c4ded9f0ee9c2e00f988c3e7c0cc985ca43dcee732ce8",
-		    "pub_key": "f9286a6a6871d898e8bfa7780d9e490df906628e780c7e92e903fe5a33ca5f5d",
-		    "seed": "0"
-		  },
-		  "message_id": 1,
-		  "protocol_version": 0,
-		  "service_id": 128,
-		  "signature": "24101c99c3706c5c33a7fcbc7bf1dc342ce671f7a243c9216bf8b86336adcbbaffec3cbfe0a0cf8608c67f42f1b759989bad4b270d2d32e4131dea80b7b1e207"
-		}
-
 
 
 
 CANCEL FOR ISSUE
+	issue = {
+	  "body": {
+	    "amount": "60",
+	    "issuer_key": "c7b7f9557503d79fd8f4ae72e15af7e6791535902d88b6238ba4335bb2056930",
+	    "pub_key": "f2a46e4365bffec7d663fdec92a76e73e08652baed23cfbb02744bd00f6e588b",
+	    "seed": "4"
+	  },
+	  "message_id": 1,
+	  "protocol_version": 0,
+	  "service_id": 128,
+	  "signature": "c8cce79bf4ad1a3f017d9b4128f4cd3c6f6da782814ec4772bdbdc0959ef7fd5ece31296f87d496dfa7d7e19016872ae6af98bbcb1218c8a3b7b49255f121803"
+	}
 
 	signed by inspector
 
-		{
+		cancel = {
 		  "body": {
-		    "pub_key": "c7b7f9557503d79fd8f4ae72e15af7e6791535902d88b6238ba4335bb2056930", //inspector
+		    "pub_key": "6193927c71234be4ad266e5e01aa1115258415d36ad6d04e2393e15b9ea1d64e",
+		    "sender": "f2a46e4365bffec7d663fdec92a76e73e08652baed23cfbb02744bd00f6e588b",
+		    "tx_hash": "a6408ed4272dd921eaf4b0cbd4338b53f5e91818aec629131578d428191ffaa2"
+		  },
+		  "message_id": 5,
+		  "protocol_version": 0,
+		  "service_id": 128,
+		  "signature": "da69c1b2794f8a3775e7025f23ef116a84c7f438fb15906dc202f99821c05c96916c2bb10683ca97d6f3b7a2ac1c6129323e8316d1ed2edbe0570041fd47a80f"
+		}
+
+
+
+	signed by user, not inspector
+
+		cancel for issue = {
+		  "body": {
+		    "pub_key": "c7b7f9557503d79fd8f4ae72e15af7e6791535902d88b6238ba4335bb2056930",
 		    "sender": "f2a46e4365bffec7d663fdec92a76e73e08652baed23cfbb02744bd00f6e588b",
 		    "tx_hash": "a6408ed4272dd921eaf4b0cbd4338b53f5e91818aec629131578d428191ffaa2"
 		  },
@@ -129,20 +140,6 @@ CANCEL FOR ISSUE
 		  "signature": "fa7ecd0a42e8509e2504f9ed360f7e07bf99951d7581745e3e37bede2a0ba64308ed464e43ade9cf6aebccf0ac05c58b512d24149693bc35a9534764be955305"
 		}
 
-
-	signed by user, not inspector
-
-		{
-		  "body": {
-		    "pub_key": "6b8b305670620c820bde19432695f1da2efa97f1ef666719e6f8fe561378c3e8",
-		    "sender": "f2a46e4365bffec7d663fdec92a76e73e08652baed23cfbb02744bd00f6e588b",
-		    "tx_hash": "a6408ed4272dd921eaf4b0cbd4338b53f5e91818aec629131578d428191ffaa2"
-		  },
-		  "message_id": 5,
-		  "protocol_version": 0,
-		  "service_id": 128,
-		  "signature": "5f16ecfaced810705cfcc4433d4cd0c1ce08e352162622ace6930ffaebbef0da713187b6f1cd8d17be8b96942fc484d78f72302605350a114056b5f029708003"
-		}
 
 
 

@@ -72,7 +72,7 @@ fn test_issue() {
     let (mut testkit, api, _) = create_testkit();
     let (tx_alice, _key_alice) = api.create_wallet(ALICE_NAME, 0);
     let (tx_bob, key_bob) = api.create_wallet(BOB_NAME, 2);
-
+    
     testkit.create_block();
     api.assert_tx_status(tx_alice.hash(), &json!({ "type": "success" }));
     api.assert_tx_status(tx_bob.hash(), &json!({ "type": "success" }));
@@ -425,13 +425,12 @@ fn test_cancellation_transfer() {
     let wallet = api.get_wallet(*tx_bob.pub_key()).unwrap();
     assert_eq!(wallet.balance(), 100);
 }
-
 #[test]
 fn test_cancellation_issue() {
     let (mut testkit, api, _) = create_testkit();
     let (tx_alice, key_alice) = api.create_wallet(ALICE_NAME, 0);
-    let (tx_bob, key_bob) = api.create_wallet(BOB_NAME, 1);
-
+    let (tx_bob, key_bob) = api.create_wallet(BOB_NAME, 2);
+    let (tx_john, key_john) = api.create_wallet(JOHN_NAME, 1);
     testkit.create_block();
     api.assert_tx_status(tx_alice.hash(), &json!({ "type": "success" }));
     api.assert_tx_status(tx_bob.hash(), &json!({ "type": "success" }));
@@ -460,10 +459,10 @@ fn test_cancellation_issue() {
     assert_eq!(wallet.balance(), 160);
 
     let tx = Cancellation :: new(
-        tx_bob.pub_key(),
+        tx_john.pub_key(),
         tx_alice.pub_key(),
         &tx_hash,
-        &key_bob,
+        &key_john,
     );
     println!("cancel for issue = {}", serde_json::to_string_pretty(&tx).unwrap());
     api.cancellation(&tx);
