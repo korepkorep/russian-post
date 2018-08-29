@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::{collections::HashSet, error::Error};
+use std::cmp::Reverse;
 //extern crate transactions;
 use blockchain::{Schema, Transaction};
 use blockchain::{Blockchain, ExecutionResult, Service};
@@ -962,11 +963,11 @@ impl NodeHandler {
                 println!("{:?}", tx_hash);
                 let raw_tx = transactions.get(&tx_hash).unwrap();
                 //Checking Transfer change to 0 back
-                if raw_tx.message_type() == 2 {
+                if raw_tx.message_type() == 0 {
                     println!("Checked in");
                     let tx: Transfer = Message::from_raw(raw_tx.clone()).unwrap();
                     let from = tx.from();
-                    let priority = 12;
+                    let priority = (self.txs_block_limit() * 1000) as u64;
                     println!("{:?}", tx);
                         if self.user_priority.contains_key(from) {
                             self.user_priority.remove(from);
@@ -978,11 +979,11 @@ impl NodeHandler {
                     temp_tx_hashes.push((*from, tx_hash));
                 }
                 
-                if raw_tx.message_type() == 1 {
+                if raw_tx.message_type() == 3 {
                     println!("Issue");
                     let tx: MailPreparation = Message :: from_raw(raw_tx.clone()).unwrap();
                     let pub_key = tx.pub_key();
-                    let priority = 10;
+                    let priority = (self.txs_block_limit() * 100) as u64;
                     println!("{:?}",tx);
                     if self.user_priority.contains_key(pub_key) {
                         self.user_priority.remove(pub_key);
@@ -1004,7 +1005,7 @@ impl NodeHandler {
             let mut map = self.user_priority.clone();
             let mut currency_user_priority: Vec<_> = map.iter().collect();
 
-            currency_user_priority.sort_by_key(|x| x.1);
+            currency_user_priority.sort_by_key(|x| Reverse(x.1));
             for user_key in currency_user_priority.iter() {
                 for public_key in temp_tx_hashes.iter() {
                     if *user_key.0 == public_key.0 && txs.len() < self.txs_block_limit() as usize {
