@@ -92,6 +92,10 @@ where
     pub fn state_hash_timestamps(&self) -> Vec<Hash> {
         vec![self.timestamps().merkle_root()]
     }
+
+    pub fn inspectors(&self) -> MapIndex<&T, PublicKey, u64>{
+        MapIndex::new("cryptocurrency.inspectors_pubkey", &self.view)
+    }
 }
 
 /// Implementation of mutable methods.
@@ -171,5 +175,15 @@ impl<'a> CurrencySchema<&'a mut Fork> {
         }
         // Add timestamp
         self.timestamps_mut().put(tx_hash, time.timestamp());
+    }
+    pub fn inspectors_mut(&mut self) -> MapIndex<&mut Fork, PublicKey, u64> {
+        MapIndex::new("cryptocurrency.inspectors_pubkey", &mut self.view)
+    }
+    pub fn add_inspector(&mut self, pub_key: &PublicKey, user: u64) {
+        if self.inspectors().contains(pub_key) || user == 0{
+            return;
+        }
+
+        self.inspectors_mut().put(&pub_key, user);
     }
 }

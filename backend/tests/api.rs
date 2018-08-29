@@ -39,6 +39,8 @@ use cryptocurrency::{
     CurrencyService,
 };
 
+use exonum::encoding::serialize::FromHex;
+
 use std::time::SystemTime;
 
 // Imports shared test constants.
@@ -47,18 +49,20 @@ use constants::{ALICE_NAME, BOB_NAME, JOHN_NAME};
 
 mod constants;
 
+
 /// Check that the wallet creation transaction works when invoked via API.
 #[test]
 fn test_create_wallet() {
     let (mut testkit, api, _) = create_testkit();
+    let user = 1;
     // Create and send a transaction via API
-    let (tx, _) = api.create_wallet(ALICE_NAME);
+    let (tx, _) = api.create_wallet(BOB_NAME, user);
     testkit.create_block();
     api.assert_tx_status(tx.hash(), &json!({ "type": "success" }));
 
     // Check that the user indeed is persisted by the service.
     let wallet = api.get_wallet(*tx.pub_key()).unwrap();
-    println!("{}", serde_json::to_string_pretty(&tx).unwrap());
+    println!("create = {}", serde_json::to_string_pretty(&tx).unwrap());
     assert_eq!(wallet.pub_key(), tx.pub_key());
     assert_eq!(wallet.name(), tx.name());
     assert_eq!(wallet.balance(), 100);
@@ -66,15 +70,15 @@ fn test_create_wallet() {
 #[test]
 fn test_issue() {
     let (mut testkit, api, _) = create_testkit();
-    let (tx_alice, _key_alice) = api.create_wallet(ALICE_NAME);
-    let (tx_bob, key_bob) = api.create_wallet(BOB_NAME);
+    let (tx_alice, _key_alice) = api.create_wallet(ALICE_NAME, 0);
+    let (tx_bob, key_bob) = api.create_wallet(BOB_NAME, 1);
+
     testkit.create_block();
     api.assert_tx_status(tx_alice.hash(), &json!({ "type": "success" }));
     api.assert_tx_status(tx_bob.hash(), &json!({ "type": "success" }));
 
     let wallet = api.get_wallet(*tx_alice.pub_key()).unwrap();
     assert_eq!(wallet.balance(), 100);
-    let _wallet = api.get_wallet(*tx_bob.pub_key()).unwrap();
 
     let tx = Issue :: new(
         tx_alice.pub_key(),
@@ -83,7 +87,7 @@ fn test_issue() {
         0,
         &key_bob,
     );
-    println!("{}", serde_json::to_string_pretty(&tx).unwrap());
+    println!("issue = {}", serde_json::to_string_pretty(&tx).unwrap());
     api.issue(&tx);
     testkit.create_block();
     api.assert_tx_status(tx.hash(), &json!({ "type": "success" }));
@@ -93,11 +97,12 @@ fn test_issue() {
     assert_eq!(wallet.balance(), 100);    
 
 }
+
 #[test]
 fn test_acceptance() {
     let (mut testkit, api, _) = create_testkit();
-    let (tx_alice, key_alice) = api.create_wallet(ALICE_NAME);
-    let (tx_bob, key_bob) = api.create_wallet(BOB_NAME);
+    let (tx_alice, key_alice) = api.create_wallet(ALICE_NAME, 0);
+    let (tx_bob, key_bob) = api.create_wallet(BOB_NAME, 1);
     testkit.create_block();
     api.assert_tx_status(tx_alice.hash(), &json!({ "type": "success" }));
     api.assert_tx_status(tx_bob.hash(), &json!({ "type": "success" }));
@@ -115,7 +120,7 @@ fn test_acceptance() {
         0,
         &key_alice,
     );
-
+    println!("preparation = {}", serde_json::to_string_pretty(&tx).unwrap());
     api.preparation(&tx);
     testkit.create_block();
     api.assert_tx_status(tx.hash(), &json!({ "type": "success" }));
@@ -133,7 +138,7 @@ fn test_acceptance() {
         1,
         &key_bob,
     );
-
+    println!("acceptance = {}", serde_json::to_string_pretty(&tx_accept).unwrap());
     api.acceptance(&tx_accept);
     testkit.create_block();
     api.assert_tx_status(tx_accept.hash(), &json!({ "type": "success" }));
@@ -153,7 +158,7 @@ fn test_acceptance() {
         2,
         &key_alice,
     );
-
+    println!("preparation_true = {}", serde_json::to_string_pretty(&tx2).unwrap());
     api.preparation(&tx2);
     testkit.create_block();
     api.assert_tx_status(tx2.hash(), &json!({ "type": "success" }));
@@ -171,7 +176,7 @@ fn test_acceptance() {
         3,
         &key_bob,
     );
-
+    println!("acceptance_true = {}", serde_json::to_string_pretty(&tx3).unwrap());
     api.acceptance(&tx3);
     testkit.create_block();
     api.assert_tx_status(tx3.hash(), &json!({ "type": "success" }));
@@ -187,8 +192,8 @@ fn test_acceptance() {
 #[test]
 fn test_preparation() {
     let (mut testkit, api, _) = create_testkit();
-    let (tx_alice, key_alice) = api.create_wallet(ALICE_NAME);
-    let (tx_bob, _) = api.create_wallet(BOB_NAME);
+    let (tx_alice, key_alice) = api.create_wallet(ALICE_NAME, 0);
+    let (tx_bob, _) = api.create_wallet(BOB_NAME, 0);
     testkit.create_block();
     api.assert_tx_status(tx_alice.hash(), &json!({ "type": "success" }));
     api.assert_tx_status(tx_bob.hash(), &json!({ "type": "success" }));
@@ -218,15 +223,13 @@ fn test_preparation() {
     assert_eq!(wallet.balance(), 100);
 }
 
-
-
 /// Check that the transfer transaction works as intended.
 #[test]
 fn test_transfer() {
     // Create 2 wallets.
     let (mut testkit, api, _) = create_testkit();
-    let (tx_alice, key_alice) = api.create_wallet(ALICE_NAME);
-    let (tx_bob, _) = api.create_wallet(BOB_NAME);
+    let (tx_alice, key_alice) = api.create_wallet(ALICE_NAME, 0);
+    let (tx_bob, _) = api.create_wallet(BOB_NAME, 0);
     testkit.create_block();
     api.assert_tx_status(tx_alice.hash(), &json!({ "type": "success" }));
     api.assert_tx_status(tx_bob.hash(), &json!({ "type": "success" }));
@@ -245,6 +248,7 @@ fn test_transfer() {
         0,  // seed
         &key_alice,
     );
+    println!("transfer = {}", serde_json::to_string_pretty(&tx).unwrap());
     api.transfer(&tx);
     testkit.create_block();
     api.assert_tx_status(tx.hash(), &json!({ "type": "success" }));
@@ -262,8 +266,8 @@ fn test_transfer() {
 fn test_transfer_from_nonexisting_wallet() {
     let (mut testkit, api, _) = create_testkit();
 
-    let (tx_alice, key_alice) = api.create_wallet(ALICE_NAME);
-    let (tx_bob, _) = api.create_wallet(BOB_NAME);
+    let (tx_alice, key_alice) = api.create_wallet(ALICE_NAME, 0);
+    let (tx_bob, _) = api.create_wallet(BOB_NAME, 0);
     // Do not commit Alice's transaction, so Alice's wallet does not exist
     // when a transfer occurs.
     testkit.create_block_with_tx_hashes(&[tx_bob.hash()]);
@@ -296,8 +300,8 @@ fn test_transfer_from_nonexisting_wallet() {
 fn test_transfer_to_nonexisting_wallet() {
     let (mut testkit, api, _) = create_testkit();
 
-    let (tx_alice, key_alice) = api.create_wallet(ALICE_NAME);
-    let (tx_bob, _) = api.create_wallet(BOB_NAME);
+    let (tx_alice, key_alice) = api.create_wallet(ALICE_NAME, 0);
+    let (tx_bob, _) = api.create_wallet(BOB_NAME, 0);
     // Do not commit Bob's transaction, so Bob's wallet does not exist
     // when a transfer occurs.
     testkit.create_block_with_tx_hashes(&[tx_alice.hash()]);
@@ -330,8 +334,8 @@ fn test_transfer_to_nonexisting_wallet() {
 fn test_transfer_overcharge() {
     let (mut testkit, api, _) = create_testkit();
 
-    let (tx_alice, key_alice) = api.create_wallet(ALICE_NAME);
-    let (tx_bob, _) = api.create_wallet(BOB_NAME);
+    let (tx_alice, key_alice) = api.create_wallet(ALICE_NAME, 0);
+    let (tx_bob, _) = api.create_wallet(BOB_NAME, 0);
     testkit.create_block();
 
     // Transfer funds. The transfer amount (110) is more than Alice has (100).
@@ -360,7 +364,7 @@ fn test_unknown_wallet_request() {
     let (_testkit, api, _) = create_testkit();
 
     // Transaction is sent by API, but isn't committed.
-    let (tx, _) = api.create_wallet(ALICE_NAME);
+    let (tx, _) = api.create_wallet(ALICE_NAME, 0);
 
     api.assert_no_wallet(*tx.pub_key());
 }
@@ -369,9 +373,9 @@ fn test_unknown_wallet_request() {
 #[test]
 fn test_cancellation_transfer() {
     let (mut testkit, api, _) = create_testkit();
-    let (tx_alice, _) = api.create_wallet(ALICE_NAME);
-    let (tx_bob, key_bob) = api.create_wallet(BOB_NAME);
-    let (tx_john, key_john) = api.create_wallet(JOHN_NAME);
+    let (tx_alice, _) = api.create_wallet(ALICE_NAME, 0);
+    let (tx_bob, key_bob) = api.create_wallet(BOB_NAME, 0);
+    let (tx_john, key_john) = api.create_wallet(JOHN_NAME, 1);
     testkit.create_block();
     api.assert_tx_status(tx_alice.hash(), &json!({ "type": "success" }));
     api.assert_tx_status(tx_bob.hash(), &json!({ "type": "success" }));
@@ -390,6 +394,7 @@ fn test_cancellation_transfer() {
     	4,
     	&key_bob,
     );
+    println!("transfer for cancel = {}", serde_json::to_string_pretty(&tx_transfer).unwrap());
     api.transfer(&tx_transfer);
     testkit.create_block();
     api.assert_tx_status(tx_transfer.hash(), &json!({ "type": "success" }));
@@ -407,6 +412,7 @@ fn test_cancellation_transfer() {
         &tx_hash,
         &key_john,
     );
+    println!("cancel_for transfer = {}", serde_json::to_string_pretty(&tx).unwrap());
     api.cancellation(&tx);
     testkit.create_block();
     api.assert_tx_status(tx.hash(), &json!({ "type": "success" }));
@@ -420,17 +426,18 @@ fn test_cancellation_transfer() {
     assert_eq!(wallet.balance(), 100);
 }
 
-
 #[test]
 fn test_cancellation_issue() {
     let (mut testkit, api, _) = create_testkit();
-    let (tx_alice, _) = api.create_wallet(ALICE_NAME);
-    let (tx_bob, key_bob) = api.create_wallet(BOB_NAME);
+    let (tx_alice, key_alice) = api.create_wallet(ALICE_NAME, 0);
+    let (tx_bob, key_bob) = api.create_wallet(BOB_NAME, 1);
+
     testkit.create_block();
     api.assert_tx_status(tx_alice.hash(), &json!({ "type": "success" }));
     api.assert_tx_status(tx_bob.hash(), &json!({ "type": "success" }));
- 
-
+    
+    //println!("keys_bob = {}, {}", serde_json::to_string_pretty(&tx_bob.pub_key()).unwrap(), serde_json::to_string_pretty(&key_bob).unwrap());
+    //println!("keys_alice = {}, {}", serde_json::to_string_pretty(&tx_alice.pub_key()).unwrap(), serde_json::to_string_pretty(&key_alice).unwrap());
 
     let wallet = api.get_wallet(*tx_alice.pub_key()).unwrap();
     assert_eq!(wallet.balance(), 100);
@@ -442,6 +449,7 @@ fn test_cancellation_issue() {
     	4,
     	&key_bob,
     );
+    println!("issue for cancel = {}", serde_json::to_string_pretty(&tx_issue).unwrap());
     api.issue(&tx_issue);
     testkit.create_block();
     api.assert_tx_status(tx_issue.hash(), &json!({ "type": "success" }));
@@ -457,6 +465,7 @@ fn test_cancellation_issue() {
         &tx_hash,
         &key_bob,
     );
+    println!("cancel for issue = {}", serde_json::to_string_pretty(&tx).unwrap());
     api.cancellation(&tx);
     testkit.create_block();
     api.assert_tx_status(tx.hash(), &json!({ "type": "success" }));
@@ -469,12 +478,11 @@ fn test_cancellation_issue() {
     let wallet = api.get_wallet(*tx_bob.pub_key()).unwrap();
     assert_eq!(wallet.balance(), 100);
 }
-
 #[test]
 fn test_cancellation_mailpreparation() {
     let (mut testkit, api, _) = create_testkit();
-    let (tx_alice, key_alice) = api.create_wallet(ALICE_NAME);
-    let (tx_bob, key_bob) = api.create_wallet(BOB_NAME);
+    let (tx_alice, key_alice) = api.create_wallet(ALICE_NAME, 0);
+    let (tx_bob, key_bob) = api.create_wallet(BOB_NAME, 1);
     testkit.create_block();
     api.assert_tx_status(tx_alice.hash(), &json!({ "type": "success" }));
     api.assert_tx_status(tx_bob.hash(), &json!({ "type": "success" }));
@@ -492,6 +500,7 @@ fn test_cancellation_mailpreparation() {
         0,
         &key_alice,
     );
+    println!("preparation = {}", serde_json::to_string_pretty(&tx_preparation).unwrap());
     api.preparation(&tx_preparation);
     testkit.create_block();
     api.assert_tx_status(tx_preparation.hash(), &json!({ "type": "success" }));
@@ -506,6 +515,7 @@ fn test_cancellation_mailpreparation() {
         &tx_hash,
         &key_bob,
     );
+    println!("cancellation = {}", serde_json::to_string_pretty(&tx).unwrap());
     api.cancellation(&tx);
     testkit.create_block();
     api.assert_tx_status(tx.hash(), &json!({ "type": "success" }));
@@ -514,12 +524,11 @@ fn test_cancellation_mailpreparation() {
     let wallet = api.get_wallet(*tx_alice.pub_key()).unwrap();
     assert_eq!(wallet.balance(), 100);
 }
-
 #[test]
 fn test_cancellation_mailacceptance() {
     let (mut testkit, api, _) = create_testkit();
-    let (tx_alice, key_alice) = api.create_wallet(ALICE_NAME);
-    let (tx_bob, key_bob) = api.create_wallet(BOB_NAME);
+    let (tx_alice, key_alice) = api.create_wallet(ALICE_NAME, 0);
+    let (tx_bob, key_bob) = api.create_wallet(BOB_NAME, 1);
     testkit.create_block();
     api.assert_tx_status(tx_alice.hash(), &json!({ "type": "success" }));
     api.assert_tx_status(tx_bob.hash(), &json!({ "type": "success" }));
@@ -538,6 +547,7 @@ fn test_cancellation_mailacceptance() {
         0,
         &key_alice,
     );
+    println!("preparation = {}", serde_json::to_string_pretty(&tx_preparation).unwrap());
     api.preparation(&tx_preparation);
     testkit.create_block();
     api.assert_tx_status(tx_preparation.hash(), &json!({ "type": "success" }));
@@ -554,7 +564,7 @@ fn test_cancellation_mailacceptance() {
         1,
         &key_bob,
     );
-
+    println!("acceptance = {}", serde_json::to_string_pretty(&tx_accept).unwrap());
     api.acceptance(&tx_accept);
     testkit.create_block();
     api.assert_tx_status(tx_accept.hash(), &json!({ "type": "success" }));
@@ -570,6 +580,7 @@ fn test_cancellation_mailacceptance() {
         &tx_hash,
         &key_bob,
     );
+    println!("cancellation = {}", serde_json::to_string_pretty(&tx).unwrap());
     api.cancellation(&tx);
     testkit.create_block();
     api.assert_tx_status(tx.hash(), &json!({ "type": "success" }));
@@ -578,129 +589,6 @@ fn test_cancellation_mailacceptance() {
     let wallet = api.get_wallet(*tx_alice.pub_key()).unwrap();
     assert_eq!(wallet.balance(), 100);
 }
-
-/*
-#[test]
-fn test_print_signature_issue(){
-    let (pubkey, _) = gen_keypair();
-    let (issuer_key, seckey) = gen_keypair();
-    let issue = Issue ::new(
-    &pubkey,
-    &issuer_key,
-    100,
-    3,
-    &seckey);
-    let serialized = serde_json::to_string(&issue).unwrap();
-    let signature = sign(&serialized.into_bytes(), &seckey);
-    /*fn write_to_file(sign: &String, pubkey: &String, seckey: &String) -> std::io::Result<()> {
-	    let mut file = File::create("issue.txt")?;
-	    let sign_f = sign.clone();
-	    let pubkey_f = pubkey.clone();
-	    let seckey_f = seckey.clone();
-	    file.write_all(&sign_f.into_bytes())?;
-	    file.write_all(b"\n");
-	    file.write_all(&pubkey_f.into_bytes())?;
-	    file.write_all(b"\n");
-	    file.write_all(&seckey_f.into_bytes())?;
-	    file.write_all(b"\n");
-	    Ok(())
-    };*/
-    let s = serde_json::to_string(&signature).unwrap();
-    let p = serde_json::to_string(&pubkey).unwrap();
-    let sk = serde_json::to_string(&seckey).unwrap();
-    ///write_to_file(&s, &p, &sk);
-
-    println!("signature = {:5?}\n", &s);
-    println!("pubkey = {:5?}\n seckey = {:5?}\n", &p, &sk);
-    assert_eq!(1, 1);
-}
-
-#[test]
-fn test_print_signature_acceptance(){
-    let (pubkey, seckey) = gen_keypair();
-    let (pubkey_s, _) = gen_keypair();
-    let accept = MailAcceptance ::new(
-    &pubkey,
-    &pubkey_s,
-    100,
-    true,
-    3,
-    &seckey);
-    let serialized = serde_json::to_string(&accept).unwrap();
-    let signature = sign(&serialized.into_bytes(), &seckey);
-    let s = serde_json::to_string(&signature).unwrap();
-    let p = serde_json::to_string(&pubkey).unwrap();
-    let sk = serde_json::to_string(&seckey).unwrap();
-    let p_s = serde_json::to_string(&pubkey_s).unwrap();
-    
-    
-    println!("signature = {:5?}\n", &s);
-    println!("pubkey = {:5?}\n seckey = {:5?}\n", &p, &sk);
-    println!("pubkey_sender = {:5?}\n", &p_s);
-    assert_eq!(1, 1);
-}
-
-#[test]
-fn test_print_signature_preparation(){
-    let (pubkey, seckey) = gen_keypair();
-    let prep = MailPreparation ::new(
-    "hello",
-    &pubkey,
-    100,
-    3,
-    &seckey);
-    let serialized = serde_json::to_string(&prep).unwrap();
-    let signature = sign(&serialized.into_bytes(), &seckey);
-    let s = serde_json::to_string(&signature).unwrap();
-    let p = serde_json::to_string(&pubkey).unwrap();
-    let sk = serde_json::to_string(&seckey).unwrap();
-    
-    println!("signature = {:5?}\n", &s);
-    println!("pubkey = {:5?}\n seckey = {:5?}\n", &p, &sk);
-    assert_eq!(1, 1);
-}
-
-#[test]
-fn test_print_signature_create_wallet(){
-    let (pubkey, seckey) = gen_keypair();
-    let wallet = CreateWallet ::new(
-    &pubkey,
-    "Sasha",
-    &seckey);
-
-    let serialized = serde_json::to_string(&wallet).unwrap();
-    let signature = sign(&serialized.into_bytes(), &seckey);
-    let s = serde_json::to_string(&signature).unwrap();
-    let p = serde_json::to_string(&pubkey).unwrap();
-    let sk = serde_json::to_string(&seckey).unwrap();
-    
-    println!("signature = {:5?}\n", &s);
-    println!("pubkey = {:5?}\n seckey = {:5?}\n", &p, &sk);
-    assert_eq!(1, 1);
-}
-
-#[test]
-fn test_print_signature_transfer(){
-    let (pubkey, seckey) = gen_keypair();
-    let (pubkey_to, _) = gen_keypair();
-    let transfer = Transfer ::new(
-    &pubkey,
-    &pubkey_to,
-    100,
-    3,
-    &seckey);
-
-    let serialized = serde_json::to_string(&transfer).unwrap();
-    let signature = sign(&serialized.into_bytes(), &seckey);
-    let s = serde_json::to_string(&signature).unwrap();
-    let p = serde_json::to_string(&pubkey).unwrap();
-    let sk = serde_json::to_string(&seckey).unwrap();
-    let pub_t = serde_json::to_string(&pubkey_to).unwrap();
-    println!("signature_from = {:5?}\n", &s);
-    println!("pubkey_from = {:5?}\n seckey_from = {:5?}\n", &p, &sk);
-    println!("pubkey_to = {:5?}\n", &pub_t);
-    assert_eq!(1, 1);
-}*/
 /// Wrapper for the cryptocurrency service API allowing to easily use it
 /// (compared to `TestKitApi` calls).
 struct CryptocurrencyApi {
@@ -713,11 +601,10 @@ impl CryptocurrencyApi {
     /// within the response).
     /// Note that the transaction is not immediately added to the blockchain, but rather is put
     /// to the pool of unconfirmed transactions.
-    fn create_wallet(&self, name: &str) -> (CreateWallet, SecretKey) {
+    fn create_wallet(&self, name: &str, user: u64) -> (CreateWallet, SecretKey) {
         let (pubkey, key) = crypto::gen_keypair();
         // Create a pre-signed transaction
-        let tx = CreateWallet::new(&pubkey, name, &key);
-
+        let tx = CreateWallet::new(&pubkey, name, user, &key);
         let tx_info: serde_json::Value = self.inner
             .public(ApiKind::Service("cryptocurrency"))
             .query(&tx)
