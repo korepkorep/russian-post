@@ -71,7 +71,7 @@ fn test_create_wallet() {
 fn test_issue() {
     let (mut testkit, api, _) = create_testkit();
     let (tx_alice, _key_alice) = api.create_wallet(ALICE_NAME, 0);
-    let (tx_bob, key_bob) = api.create_wallet(BOB_NAME, 1);
+    let (tx_bob, key_bob) = api.create_wallet(BOB_NAME, 2);
 
     testkit.create_block();
     api.assert_tx_status(tx_alice.hash(), &json!({ "type": "success" }));

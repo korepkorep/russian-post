@@ -79,35 +79,37 @@ USERS
 
 ISSUE
 
-	signed by inspector
+	signed by issuer
 
-		 {
+		 issue = {
 		  "body": {
 		    "amount": "11",
-		    "issuer_key": "9e5c484186492b644b4abd0dc6ca4ea28470360527ed35eaba607b1ded2cb29f",
-		    "pub_key": "cdd11f5fd90353cd058de0fc621c000bcd8aa4ee5b8f14a0dde3e7fd25be26f5",
+		    "issuer_key": "4cd886513146521426dda453c58f32180aebf7926033f3b48b15de680695f084",
+		    "pub_key": "41b3f7d872cc5825f698369bbfa3d5f3e7c84eb09ad399cf48326bed0a3a9ac8",
 		    "seed": "0"
 		  },
 		  "message_id": 1,
 		  "protocol_version": 0,
 		  "service_id": 128,
-		  "signature": "10bee200790eeff826178f92c0563a4e729894baea6258ec1a3176b02e29c4d28bfcb75962a72f133dc253e615abaa6bba407ae9bee79360249ea69f86471a01"
+		  "signature": "abb05bee45d50c9a00cdd71b758bf406744e7bb8a971f0cbccc40f8b46e81c68d26deb5b2e375da5483e74511939f2a6f269b4969bec02df7a212c3661495704"
 		}
 
-	signed by user
 
-		 {
+	signed by user or inspector
+
+		 issue = {
 		  "body": {
 		    "amount": "11",
-		    "issuer_key": "19a5030e3ad671ef7ef72807bde495aadc008d79c6aef8f7e95d92878a75259a",
-		    "pub_key": "f3f2a32e5399410bb3f75434df5f02b67c58bd317a8f0154dbd299b4f9d2c990",
+		    "issuer_key": "4e8d1729ed181988d66c4ded9f0ee9c2e00f988c3e7c0cc985ca43dcee732ce8",
+		    "pub_key": "f9286a6a6871d898e8bfa7780d9e490df906628e780c7e92e903fe5a33ca5f5d",
 		    "seed": "0"
 		  },
 		  "message_id": 1,
 		  "protocol_version": 0,
 		  "service_id": 128,
-		  "signature": "7a73ab93b2785c63136c92ce4893fc611f30f3ded3068f8589f268aa771aaeaca548719f1932a011be7e6cd2e8eeadc02ede1638deb8ebc97079a30b43d16a0e"
+		  "signature": "24101c99c3706c5c33a7fcbc7bf1dc342ce671f7a243c9216bf8b86336adcbbaffec3cbfe0a0cf8608c67f42f1b759989bad4b270d2d32e4131dea80b7b1e207"
 		}
+
 
 
 

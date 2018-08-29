@@ -96,6 +96,10 @@ where
     pub fn inspectors(&self) -> MapIndex<&T, PublicKey, u64>{
         MapIndex::new("cryptocurrency.inspectors_pubkey", &self.view)
     }
+
+    pub fn issuers(&self) -> MapIndex<&T, PublicKey, u64>{
+        MapIndex::new("cryptocurrency.issuers_pubkey", &self.view)
+    }
 }
 
 /// Implementation of mutable methods.
@@ -180,10 +184,22 @@ impl<'a> CurrencySchema<&'a mut Fork> {
         MapIndex::new("cryptocurrency.inspectors_pubkey", &mut self.view)
     }
     pub fn add_inspector(&mut self, pub_key: &PublicKey, user: u64) {
-        if self.inspectors().contains(pub_key) || user == 0{
+        if self.inspectors().contains(pub_key) || user == 0 || user == 2{
             return;
         }
 
         self.inspectors_mut().put(&pub_key, user);
+    }
+
+    pub fn issuers_mut(&mut self) -> MapIndex<&mut Fork, PublicKey, u64>{
+        MapIndex::new("cryptocurrency.issuers_pubkey", &mut self.view)
+    }
+
+    pub fn add_issuer(&mut self, pub_key: &PublicKey, user: u64) {
+        if self.issuers().contains(pub_key) || user == 0 || user == 1{
+            return;
+        }
+
+        self.issuers_mut().put(&pub_key, user);
     }
 }

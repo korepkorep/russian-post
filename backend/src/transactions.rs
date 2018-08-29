@@ -62,7 +62,10 @@ pub enum Error {
     Timeisup = 4,
 
     #[fail(display = "Pubkey doesn`t belong to inspector")]
-    NotInspaector = 5,
+    NotInspector = 5,
+
+    #[fail(display = "Pubkey doesn`t belong to issuer")]
+    NotIssuer = 6,
 }
 
 impl From<Error> for ExecutionError {
@@ -92,7 +95,7 @@ transactions! {
             seed:    u64,
         }
 
-        /// Create wallet with the given `name`. 1 - inspector, 0 - user
+        /// Create wallet with the given `name`. 1 - inspector, 0 - user, 2 - issuer
         struct CreateWallet {
             pub_key: &PublicKey,
             name:    &str,
@@ -136,8 +139,8 @@ impl Transaction for Issue {
             .get();
         let mut schema = CurrencySchema :: new(fork);
         let pub_key = self.pub_key();
-        if !schema.inspectors().contains(self.issuer_key()) {
-        	Err(Error::NotInspaector)?
+        if !schema.issuers().contains(self.issuer_key()) {
+        	Err(Error::NotIssuer)?
         }
         if let Some(wallet) = schema.wallet(pub_key) {
             let amount = self.amount();
@@ -207,6 +210,7 @@ impl Transaction for CreateWallet {
             let entry = TimestampEntry::new(&self.hash(), time.unwrap());
             schema.add_timestamp(entry);
             schema.add_inspector(pub_key, self.user_type());
+            schema.add_issuer(pub_key, self.user_type());
             Ok(())
         } else {
             Err(Error::WalletAlreadyExists)?
@@ -252,7 +256,7 @@ impl Transaction for MailAcceptance {
         let accept = self.accept();
         let hash = self.hash();
         if !schema.inspectors().contains(self.pub_key()) {
-        	Err(Error::NotInspaector)?
+        	Err(Error::NotInspector)?
         }
         let sender = schema.wallet(sender_key).ok_or(Error :: SenderNotFound)?;
         if accept {
@@ -284,7 +288,7 @@ impl Transaction for Cancellation {
         let tx_hash = self.tx_hash();
         let hash = self.hash();
         if !schema.inspectors().contains(self.pub_key()) {
-        	Err(Error::NotInspaector)?
+        	Err(Error::NotInspector)?
         }
         let tx_time = schema.timestamps().get(&tx_hash).unwrap();
         if time.timestamp() - tx_time < n {
