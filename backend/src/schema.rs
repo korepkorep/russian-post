@@ -10,9 +10,7 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License.
-//extern crate chrono;
-//use self::chrono::{DateTime, Utc};    
+// limitations under the License.  
 
 use exonum::{
     crypto::{Hash, PublicKey}, storage::{Fork, ProofListIndex, ProofMapIndex, Snapshot, MapIndex},
@@ -20,8 +18,10 @@ use exonum::{
 };
 
 use chrono::{DateTime, Utc};
+
 use wallet::Wallet;
 use INITIAL_BALANCE;
+
 
 encoding_struct! {
     /// Timestamp entry.
@@ -34,6 +34,8 @@ encoding_struct! {
         time: DateTime<Utc>,
     }
 }
+
+
 
 /// Database schema for the cryptocurrency.
 #[derive(Debug)]
@@ -110,13 +112,16 @@ impl<'a> CurrencySchema<&'a mut Fork> {
     /// Increase balance of the wallet and append new record to its history.
     ///
     /// Panics if there is no wallet with given public key.
-    pub fn increase_wallet_balance(&mut self, wallet: Wallet, amount: u64, transaction: &Hash, freezed_balance: u64) {
+    //pub fn increase_wallet_balance(&mut self, wallet: Wallet, amount: u64, transaction: &Hash, freezed_balance: u64) {
+    pub fn increase_wallet_balance(&mut self, wallet: Wallet, amount: u64, transaction: &Hash) {
         let wallet = {
             let mut history = self.wallet_history_mut(wallet.pub_key());
             history.push(*transaction);
             let history_hash = history.merkle_root();
             let balance = wallet.balance();
-            wallet.set_balance(balance + amount, &history_hash, freezed_balance)
+            /////////////////////////////
+            //wallet.set_balance(balance + amount, &history_hash, freezed_balance)
+            wallet.set_balance(balance + amount, &history_hash)
         };
         self.wallets_mut().put(wallet.pub_key(), wallet.clone());
     }
@@ -124,25 +129,27 @@ impl<'a> CurrencySchema<&'a mut Fork> {
     /// Decrease balance of the wallet and append new record to its history.
     ///
     /// Panics if there is no wallet with given public key.
-    pub fn decrease_wallet_balance(&mut self, wallet: Wallet, amount: u64, transaction: &Hash, freezed_balance: u64) {
+    pub fn decrease_wallet_balance(&mut self, wallet: Wallet, amount: u64, transaction: &Hash) {
         let wallet = {
             let mut history = self.wallet_history_mut(wallet.pub_key());
             history.push(*transaction);
             let history_hash = history.merkle_root();
             let balance = wallet.balance();
-            wallet.set_balance(balance - amount, &history_hash, freezed_balance)
+            wallet.set_balance(balance - amount, &history_hash)
         };
         self.wallets_mut().put(wallet.pub_key(), wallet.clone());
     }
 
     /// Create new wallet and append first record to its history.
-    pub fn create_wallet(&mut self, key: &PublicKey, name: &str, transaction: &Hash, freezed_balance: u64) {
+    //pub fn create_wallet(&mut self, key: &PublicKey, name: &str, transaction: &Hash, freezed_balance: u64) {
+    pub fn create_wallet(&mut self, key: &PublicKey, name: &str, transaction: &Hash) {
         let wallet = {
             let mut history = self.wallet_history_mut(key);
             history.push(*transaction);
             let history_hash = history.merkle_root();
-            let freezed_balance = 0;
-            Wallet::new(key, name, INITIAL_BALANCE, history.len(), &history_hash, freezed_balance)
+            //let freezed_balance = 0;
+            //Wallet::new(key, name, INITIAL_BALANCE, history.len(), &history_hash, freezed_balance)
+            Wallet::new(key, name, INITIAL_BALANCE, history.len(), &history_hash)
         };
         self.wallets_mut().put(key, wallet);
     }
@@ -166,7 +173,6 @@ impl<'a> CurrencySchema<&'a mut Fork> {
         if self.timestamps().contains(tx_hash) {
             return;
         }
-
         // Add timestamp
         self.timestamps_mut().put(tx_hash, time.timestamp());
     }

@@ -31,7 +31,7 @@ use exonum::messages::RawMessage;
 use exonum::storage::Snapshot;
 use exonum_time::schema::TimeSchema;
 
-use CRYPTOCURRENCY_SERVICE_ID;
+use POST_SERVICE_ID;
 use schema::{CurrencySchema, TimestampEntry};
 
 /// Error codes emitted by wallet transactions during execution.
@@ -65,9 +65,6 @@ pub enum Error {
     #[fail(display = "Time is up")]
     Timeisup = 4,
 
-    #[fail(display = "Cannot get transaction")]
-    CannotGetTransaction = 5,
-
 }
 
 impl From<Error> for ExecutionError {
@@ -79,7 +76,7 @@ impl From<Error> for ExecutionError {
 
 transactions! {
     pub WalletTransactions {
-        const SERVICE_ID = CRYPTOCURRENCY_SERVICE_ID;
+        const SERVICE_ID = POST_SERVICE_ID;
 
         /// Transfer `amount` of the currency from one wallet to another.
         struct Transfer {
@@ -87,7 +84,6 @@ transactions! {
             to:      &PublicKey,
             amount:  u64,
             seed:    u64,
-            //priority: f64, 
         }
 
         /// Issue `amount` of the currency to the `wallet`.
@@ -104,6 +100,7 @@ transactions! {
             name:    &str,
         }
 
+        /// Prepare tokens for stamping 
         struct MailPreparation {
             meta: &str,
             pub_key: &PublicKey,
@@ -111,6 +108,7 @@ transactions! {
             seed: u64,
         }
 
+        /// Accept or reject prepared tokens
         struct MailAcceptance {
             pub_key: &PublicKey,
             sender_key: &PublicKey,
@@ -118,32 +116,17 @@ transactions! {
             accept:  bool,
             seed: u64,
         }
-      
+    }
+}
+
+        /// Cancel particular transaction
+        /*
         struct Cancellation {
             pub_key: &PublicKey,
             sender: &PublicKey,
             tx_hash: &Hash,
         }
-
-impl Transaction for Issue {
-    fn verify(&self) -> bool {
-        self.verify_signature(self.pub_key())
-    }
-
-    fn execute(&self, fork: &mut Fork) -> ExecutionResult {
-        let mut schema = CurrencySchema :: new(fork);
-        let pub_key = self.pub_key();
-        let hash = self.hash();
-
-        if let Some(wallet) = schema.wallet(pub_key) {
-            let amount = self.amount();
-            schema.increase_wallet_balance(wallet, amount, &hash, 0);
-            Ok(())
-        } else {
-            Err(Error::ReceiverNotFound)?
-    }
-}
-
+        */
 impl Transaction for Issue {
     fn verify(&self) -> bool {
         self.verify_signature(self.issuer_key())
@@ -158,7 +141,7 @@ impl Transaction for Issue {
 
         if let Some(wallet) = schema.wallet(pub_key) {
             let amount = self.amount();
-            schema.increase_wallet_balance(wallet, amount, &self.hash(), 0);
+            schema.increase_wallet_balance(wallet, amount, &self.hash());
 
             let entry = TimestampEntry::new(&self.hash(), time.unwrap());
             schema.add_timestamp(entry);
@@ -169,7 +152,6 @@ impl Transaction for Issue {
         }
     }
 }
-
 
 impl Transaction for Transfer {
     fn verify(&self) -> bool {
@@ -187,15 +169,17 @@ impl Transaction for Transfer {
         let hash = self.hash();
         let amount = self.amount();
         let freezed_balance = 0;
-        let sender = schema.wallet(from).ok_or(Error :: SenderNotFound)?;
 
+        let sender = schema.wallet(from).ok_or(Error :: SenderNotFound)?;
         let receiver = schema.wallet(to).ok_or(Error :: ReceiverNotFound)?;
 
         if sender.balance() < amount {
             Err(Error::InsufficientCurrencyAmount)?;
+
         }
-        schema.decrease_wallet_balance(sender, amount, &hash, freezed_balance);
-        schema.increase_wallet_balance(receiver, amount, &hash, freezed_balance);
+
+        schema.decrease_wallet_balance(sender, amount, &hash);
+        schema.increase_wallet_balance(receiver, amount, &hash);
         
         let entry = TimestampEntry::new(&self.hash(), time.unwrap());
         schema.add_timestamp(entry);
@@ -218,12 +202,11 @@ impl Transaction for CreateWallet {
 
         if schema.wallet(pub_key).is_none(){
             let name = self.name();
-            let freezed_balance = 0;
-            schema.create_wallet(pub_key, name, &hash, freezed_balance);
+            //let freezed_balance = 0;
+            schema.create_wallet(pub_key, name, &hash);
 
             let entry = TimestampEntry::new(&self.hash(), time.unwrap());
             schema.add_timestamp(entry);
-
 
             Ok(())
         } else {
@@ -231,7 +214,6 @@ impl Transaction for CreateWallet {
         } 
     }    
 }
-
 
 impl Transaction for MailPreparation {
     fn verify(&self) -> bool {
@@ -242,7 +224,6 @@ impl Transaction for MailPreparation {
         let time = TimeSchema::new(&fork)
             .time()
             .get();
-
         let mut schema = CurrencySchema :: new(fork);
         let pub_key = self.pub_key();
         let amount = self.amount();
@@ -251,28 +232,22 @@ impl Transaction for MailPreparation {
         if sender.balance() < amount {
             Err(Error::InsufficientCurrencyAmount)?;
         }
-        schema.decrease_wallet_balance(sender, amount, &hash, amount);
-        Ok(())
-    }
+        schema.decrease_wallet_balance(sender, amount, &hash);
         let entry = TimestampEntry::new(&self.hash(), time.unwrap());
         schema.add_timestamp(entry);
         Ok(())
     }
 }
 
-
 impl Transaction for MailAcceptance {
     fn verify(&self) -> bool {
         self.verify_signature(self.pub_key())
     }
 
-
-
     fn execute(&self, fork: &mut Fork) -> ExecutionResult {
         let time = TimeSchema::new(&fork)
             .time()
             .get();
-
         let mut schema = CurrencySchema :: new(fork);
         let sender_key = self.sender_key();
         let accept = self.accept();
@@ -280,25 +255,24 @@ impl Transaction for MailAcceptance {
         let sender = schema.wallet(sender_key).ok_or(Error :: SenderNotFound)?;
         if accept {
             let freezed_balance = 0;
-            schema.decrease_wallet_balance(sender, freezed_balance, &hash, freezed_balance);
+            //schema.decrease_wallet_balance(sender, freezed_balance, &hash, freezed_balance);
+            schema.decrease_wallet_balance(sender, freezed_balance, &hash);
         } else {
-            let amount = sender.freezed_balance();
-            let freezed_balance = 0;
-            schema.increase_wallet_balance(sender, amount, &hash, freezed_balance);
+            let amount = self.amount();
+            //let freezed_balance = 0;
+            //schema.increase_wallet_balance(sender, amount, &hash, freezed_balance);
+            schema.increase_wallet_balance(sender, amount, &hash);
         }
-
         let entry = TimestampEntry::new(&self.hash(), time.unwrap());
         schema.add_timestamp(entry);
         Ok(())
     }
 }
-
+/*
 impl Transaction for Cancellation {
     fn verify(&self) -> bool {
         self.verify_signature(self.pub_key())
     }
-
-    
 
     fn execute(&self, fork: &mut Fork) -> ExecutionResult {
         let n = 100000;
@@ -314,7 +288,7 @@ impl Transaction for Cancellation {
         if time.timestamp() - tx_time < n {
             let raw_tx = match schema.transactions().get(&tx_hash) {
             	Some(x) => x,
-            	None => panic!("Cannot get transaction!"),
+            	None => panic!("Transaction not found!"),
             };
             let id = raw_tx.message_type();
             match id {
@@ -354,7 +328,7 @@ impl Transaction for Cancellation {
                     }
                     
                 },
-                _ => panic!("Transaction is not define"),
+                _ => panic!("Transaction is not defined"),
        		};
        		let entry = TimestampEntry::new(&self.hash(), time);
         	schema.add_timestamp(entry);
@@ -364,3 +338,4 @@ impl Transaction for Cancellation {
         Ok(())
     }
 }
+*/
