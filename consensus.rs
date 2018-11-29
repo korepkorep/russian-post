@@ -967,15 +967,35 @@ impl NodeHandler {
                     println!("Checked in");
                     let tx: Transfer = Message::from_raw(raw_tx.clone()).unwrap();
                     let from = tx.from();
-                    let priority = (self.txs_block_limit() * 1000) as u64;
+                    //let mut priority = self.user_priority;
+                    //(self.txs_block_limit() * 1000) as u64;
+                    let mut priority = 100;
                     println!("{:?}", tx);
                         if self.user_priority.contains_key(from) {
-                            self.user_priority.remove(from);
-                            self.user_priority.insert(*from, priority);
-                        } else {
-                        self.user_priority.insert(*from, priority); 
-                        }
+                            priority = self.user_priority[from];
+                            let mut number_of_participants = ((self.user_priority.len()) as u64);
+                            let mut N = (((self.txs_block_limit() as u64)/2) as u64);
+                            let mut sum = tx.amount();
+                            //let mut array_of_priorities = Vec :: new();
+                            //{
+                            //for value in self.user_priority.values(){
+                            //    array_of_priorities.push(value);
+                            //}
+                            //}
+                            //array_of_priorities.sort();
+                            //let mut last =  array_of_priorities[0].1;
 
+
+                            let mut array_of_priorities: Vec<_> = self.user_priority.iter().collect();
+                            array_of_priorities.sort_by_key(|x| x.1);
+                            let mut last =  array_of_priorities[0].1;
+                            priority = (((priority % number_of_participants)%N) + sum) % last;
+                            //self.user_priority.insert(*from, priority);
+                        } else {
+                        //self.user_priority.insert(*from, 100);
+                            priority = 100; 
+                        }
+                        self.user_priority.insert(*from, priority);
                     temp_tx_hashes.push((*from, tx_hash));
                 }
                 
@@ -983,7 +1003,7 @@ impl NodeHandler {
                     println!("Issue");
                     let tx: MailPreparation = Message :: from_raw(raw_tx.clone()).unwrap();
                     let pub_key = tx.pub_key();
-                    let priority = (self.txs_block_limit() * 100) as u64;
+                    let priority = (self.txs_block_limit() ) as u64;
                     println!("{:?}",tx);
                     if self.user_priority.contains_key(pub_key) {
                         self.user_priority.remove(pub_key);
