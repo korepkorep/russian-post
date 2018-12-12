@@ -974,8 +974,12 @@ impl NodeHandler {
                         if self.user_priority.contains_key(from) {
                             priority = self.user_priority[from];
                             let mut number_of_participants = ((self.user_priority.len()) as u64);
-                            let mut N = (((self.txs_block_limit() as u64)/2) as u64);
+                            let mut C = (((self.txs_block_limit() as u64)/2) as u64);
+                            let mut L = 600 as u64;
+                            let mut R = 1 as u64;
                             let mut sum = tx.amount();
+                            let mut u = sum as u64;
+                            let mut S = 10000;
                             //let mut array_of_priorities = Vec :: new();
                             //{
                             //for value in self.user_priority.values(){
@@ -985,11 +989,16 @@ impl NodeHandler {
                             //array_of_priorities.sort();
                             //let mut last =  array_of_priorities[0].1;
 
+                            //PREVIOS VERSION with modules where N == C
+                            //let mut array_of_priorities: Vec<_> = self.user_priority.iter().collect();
+                            //array_of_priorities.sort_by_key(|x| x.1);
+                            //let mut last =  array_of_priorities[0].1;
+                            //priority = (((priority % number_of_participants)%N) + sum) % last;
+                            let mut residue = 0;
+                            let mut M = C*L*R;
+                            residue = M*u % S;
+                            priority = (M*u -residue)/S;
 
-                            let mut array_of_priorities: Vec<_> = self.user_priority.iter().collect();
-                            array_of_priorities.sort_by_key(|x| x.1);
-                            let mut last =  array_of_priorities[0].1;
-                            priority = (((priority % number_of_participants)%N) + sum) % last;
                             //self.user_priority.insert(*from, priority);
                         } else {
                         //self.user_priority.insert(*from, 100);
